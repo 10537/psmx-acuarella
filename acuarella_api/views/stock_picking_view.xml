@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_picking_form_acuarella" model="ir.ui.view">
+        <field name="name">stock.picking.form.acuarella</field>
+        <field name="model">stock.picking</field>
+        <field name="inherit_id" ref="stock.view_picking_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook" position="inside">
+                <page string="Carrier Info" name="carrier_info">
+                    <group>
+                        <group>
+                            <field name="x_carrier_tracking_ref"/>
+                            <field name="x_carrier_partner_name"/>
+                            <field name="x_carrier_identity_document"/>
+                        </group>
+                        <group>
+                            <field name="x_carrier_delivery_address"/>
+                            <field name="x_carrier_state"/>
+                        </group>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>

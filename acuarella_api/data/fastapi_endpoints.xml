@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="fastapi_endpoint_shipping" model="fastapi.endpoint">
+            <field name="name">Shipping API</field>
+            <field name="root_path">/api/v1/shipping</field>
+            <field name="app">shipping</field>
+            <field name="user_id" ref="base.user_admin"/>
+        </record>
+    </data>
+</odoo>
