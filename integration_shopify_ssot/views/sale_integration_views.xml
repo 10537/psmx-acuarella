@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="sale_integration_form_inherit_ssot" model="ir.ui.view">
+        <field name="name">sale.integration.form.inherit.ssot</field>
+        <field name="model">sale.integration</field>
+        <field name="inherit_id" ref="integration.view_sale_integration_form"/>
+        <field name="arch" type="xml">
+            <!-- Add the enforce_ssot field to the settings. We will put it inside the notebook page or header -->
+            <xpath expr="//sheet/div[@name='button_box']" position="after">
+                <widget name="web_ribbon" title="SSOT Enforced" bg_color="bg-success" invisible="not enforce_ssot"/>
+            </xpath>
+            <xpath expr="//group[@name='integration_core']" position="inside">
+                <field name="enforce_ssot" invisible="provider != 'shopify'" widget="boolean_toggle"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>
