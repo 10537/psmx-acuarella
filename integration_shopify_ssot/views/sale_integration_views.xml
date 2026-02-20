@@ -6,7 +6,7 @@
         <field name="inherit_id" ref="integration.view_sale_integration_form"/>
         <field name="arch" type="xml">
             <!-- Add the enforce_ssot field to the settings. We will put it inside the notebook page or header -->
-            <xpath expr="//sheet" position="inside">
+            <xpath expr="//header" position="after">
                 <widget name="web_ribbon" title="SSOT Enforced" bg_color="bg-success" invisible="not enforce_ssot or not is_integration_shopify"/>
             </xpath>
             <xpath expr="//group[@name='integration_settings']" position="inside">
