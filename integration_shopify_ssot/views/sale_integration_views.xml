@@ -6,11 +6,11 @@
         <field name="inherit_id" ref="integration.view_sale_integration_form"/>
         <field name="arch" type="xml">
             <!-- Add the enforce_ssot field to the settings. We will put it inside the notebook page or header -->
-            <xpath expr="//sheet/div[@name='button_box']" position="after">
-                <widget name="web_ribbon" title="SSOT Enforced" bg_color="bg-success" invisible="not enforce_ssot"/>
+            <xpath expr="//sheet" position="inside">
+                <widget name="web_ribbon" title="SSOT Enforced" bg_color="bg-success" invisible="not enforce_ssot or not is_integration_shopify"/>
             </xpath>
-            <xpath expr="//group[@name='integration_core']" position="inside">
-                <field name="enforce_ssot" invisible="provider != 'shopify'" widget="boolean_toggle"/>
+            <xpath expr="//group[@name='integration_settings']" position="inside">
+                <field name="enforce_ssot" invisible="not is_integration_shopify" widget="boolean_toggle"/>
             </xpath>
         </field>
     </record>
