@@ -11,22 +11,22 @@ class IntegrationAccountTaxMapping(models.Model):
     _mapping_fields = ('tax_id', 'external_tax_id')
 
     tax_id = fields.Many2one(
-        comodel_name='account.tax',
         string='Odoo Tax',
+        comodel_name='account.tax',
         ondelete='cascade',
         domain="[('type_tax_use','=','sale'), ('company_id', '=', company_id)]",
     )
     external_tax_id = fields.Many2one(
-        comodel_name='integration.account.tax.external',
         string='External Tax',
+        comodel_name='integration.account.tax.external',
         required=True,
         ondelete='cascade',
     )
 
     # TODO: remove in Odoo 16 as Deprecated
     external_tax_group_id = fields.Many2one(
-        comodel_name='integration.account.tax.group.external',
         string='External Tax Group',
+        comodel_name='integration.account.tax.group.external',
     )
 
     # TODO: add constain

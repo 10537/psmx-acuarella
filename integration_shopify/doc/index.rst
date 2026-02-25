@@ -26,6 +26,45 @@ https://ventortech.atlassian.net/servicedesk/customer/portal/1/article/482541668
 Release Notes
 -------------
 
+* 2.0.0 (2026-01-23)
+    - [BREAKING] This is a major release with backward-incompatible changes. Please review the `release notes <https://ecosystem.ventor.tech/faq/release-notes/>`__ before upgrading.
+    - [NEW] Migrated Shopify connector to the GraphQL API. The connector now uses Shopify’s modern GraphQL API instead of the deprecated REST API, delivering improved performance, better stability, and long-term compatibility with Shopify’s platform.
+    - [NEW] Added support for Shopify Markets & Catalogs synchronization. The connector now allows mapping Odoo pricelists to Shopify catalogs, enabling accurate and flexible price synchronization across multiple Shopify markets directly from Odoo. This makes it easier to manage region-specific pricing from a single system.
+    - [IMP] Updated Shopify app authentication to support the new Shopify Dev Dashboard and OAuth flow.
+    - [IMP] Product field mapping engine fully refactored. The connector now supports flexible and extensible product field mappings, including custom Python-based transformation logic configurable directly from the Odoo UI.
+    - [IMP] Refactored product and order tag synchronization. The Shopify connector now uses a dedicated tags field instead of the previous Feature-based workaround.
+    - [IMP] Optimized Shopify synchronization performance. The connector now avoids unnecessary additional API requests during synchronization, reducing API load and improving overall sync speed and reliability.
+    - [IMP] Improved handling of missing or custom order items. When an order line references a product that no longer exists or represents a custom item and a fallback product is used, the connector now preserves the original product name and SKU from the e-commerce order in the Sales Order Line description.
+    - [IMP] Improved automatic cleanup of connector-generated logs. Connector logs (including webhook-related entries) are now cleaned up using a dedicated Odoo cleanup mechanism with a configurable retention period, helping reduce database noise and improve long-term performance.
+    - [FIX] Other improvements and fixes implemented to boost overall performance, stability, and reliability.
+
+* 1.13.2 (2025-12-13)
+    - [IMP] Prepared connectors for Odoo 19.0 compatibility to ensure a smooth migration using special upgrade module. These changes align connector logic with Odoo 19.0's new e-commerce data models, making it easier and safer for customers to upgrade product categories and images during migration.
+    - [FIX] Fixed an issue with order status export where multiple rapid status changes could be ignored. The connector now creates a separate background job for each status update, ensuring all changes are exported in the correct sequence to the e-commerce store.
+
+* 1.13.1 (2025-11-27)
+    - [NEW] Added option to leave the Salesperson field empty on imported Sales Orders. Previously, orders were assigned to Administrator by default. This behavior now matches Odoo's website_sale flow and provides more flexibility for teams that prefer assigning Salespersons manually.
+    - [IMP] The "Import Orders" setting is now preserved when Sale Integration is disabled, ensuring the selected value is restored when reactivated. Internal automation checks were also refined for more consistent behavior.
+    - [FIX] Fixed an issue in the configuration validation wizard that caused validation to fail when using the Integration Queue Job module (VentorTech fork of Job Queue). The wizard now works correctly with the updated job management logic in Odoo 19.0.
+    - [FIX] Order webhooks now correctly respect the "Orders Cut-off Date" setting. Orders created before the cut-off date will no longer be imported or updated when webhook events are received.
+    - [FIX] Improved contact matching logic and resolved several edge-case issues that could create duplicate contacts in specific scenarios. Synchronization is now more accurate and consistent.
+    - [FIX] Numerous background improvements and fixes implemented to boost overall performance, stability, and reliability.
+
+* 1.13.0 (2025-10-27)
+    - [NEW] Redesigned Import Wizard that unifies and simplifies all data import processes. Whether performing an initial setup or importing new records later, users can now follow a clear, step-by-step workflow to bring products, customers, and orders from their e-commerce store into Odoo with ease. This overhaul makes the entire import process faster, more reliable, and beginner-friendly.
+    - [NEW] Added “Failed Job Notifications” checkbox on user profiles to control who receives alerts about failed jobs. Enabled by default for users with Job Queue Manager rights.
+    - [NEW] Added support for product translations. The connector now synchronizes translations in both directions for key product fields — Name, Description, Meta Title, and Meta Description — making it easier to manage multilingual Shopify stores directly from Odoo.
+    - [IMP] Redesigned UI/UX for a smoother, more intuitive experience. Views and menus were reorganized for faster navigation, with new actions, clearer tooltips, and many small visual improvements.
+    - [IMP] Improved webhook stability and data accuracy across all connectors. Fixed issues that could cause missing product details and enhanced order webhook logic to respect importable order statuses — preventing unwanted imports of orders in undesired states.
+    - [IMP] Improved handling of external fulfillments and payments from e-commerce stores. These records are now applied not only during automated workflows but also when users perform actions manually — such as confirming orders or creating invoices in Odoo. This change provides greater flexibility and ensures external data stays synchronized regardless of how the workflow is triggered.
+    - [IMP] Enhanced contact matching logic to prevent duplicates. The connector now uses normalized email and phone values when searching for existing Odoo contacts and addresses, significantly reducing the creation of duplicate records during synchronization.
+    - [IMP] Status menu visibility is now limited to users with connector configuration access, keeping the interface clean and focused for regular users.
+    - [IMP] Expanded automatic retry logic for Shopify API requests. In addition to handling “Too Many Requests” (429) errors, the connector now automatically retries safe operations after temporary network issues or server-side (500) errors, improving reliability and stability of data synchronization.
+    - [FIX] Resolved issues with BoM quantity calculations for products using Bills of Materials. The connector now correctly computes stock levels in complex BoM scenarios, ensuring accurate quantity synchronization based on customer feedback.
+    - [FIX] Updated sales dashboard analytics to exclude cancelled orders from statistics, ensuring more accurate sales and performance insights.
+    - [FIX] Fixed critical issue with image synchronization caused by recent Shopify API changes, where ProductImage IDs were replaced with MediaImage IDs. This update prevents accidental image removals in Shopify products and ensures stable, reliable media synchronization.
+    - [FIX] Numerous background improvements and fixes implemented to boost overall performance, stability, and reliability.
+
 * 1.12.2 (2025-07-23)
     - [NEW] Added support for mapping Shopify Order “Source Name” to a custom field in Odoo.
     - [IMP] Improved tax handling: the connector now detects tax-exempt Shopify orders and avoids assigning taxes to order lines in Odoo.
@@ -197,7 +236,7 @@ Release Notes
     - NEW! Allow excluding specific product attributes to synchronize from Odoo to Shopify. Can be configured in “Sales - Configuration - Attributes“. `(watch video) <https://youtu.be/LZvrutgifuU>`__
     - NEW! Discount for individual products is added as a separate line on Odoo Sales Order for proper financial records. `(watch video) <https://youtu.be/OvymmCkTsi0>`__
     - NEW! Allow switching on and off validation of missing barcodes on product variants. When “Validate missing barcodes for variants“ is enabled then the connector will validate that either all variants should have barcodes, or neither of the variants should have barcodes (the mix is not allowed). Available only in Debug mode on the “Product Defaults“ tab. `(watch video) <https://youtu.be/sL4ZOO7swpg>`__
-    - In case it is configured not to download the barcode field from Shopify to Odoo (in Product Fields Mapping there is no barcode field defined) connector will not analyze external products for duplicated barcodes.
+    - In case it is configured not to download the barcode field from Shopify to Odoo (in Field Synchronization there is no barcode field defined) connector will not analyze external products for duplicated barcodes.
     - Synchronize taxable flag to the product in Shopify. Is set to True when there is Customer Tax, and False in the other case.
     - Download orders by batches to avoid timeout of “Receive Orders” job.
     - When exporting a new product from Odoo to Shopify that contains attributes and attribute values that were not existing in Shopify, the connector will create them automatically.

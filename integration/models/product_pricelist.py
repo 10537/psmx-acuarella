@@ -18,6 +18,11 @@ class ProductPricelist(models.Model):
     _inherit = ['product.pricelist', 'integration.model.mixin']
     _internal_reference_field = 'name'
 
+    currency_code = fields.Char(
+        related='currency_id.name',
+        string='Currency Code',
+    )
+
     def trigger_force_export(self):
         price_mapping_ids = self.env['integration.product.pricelist.mapping'].search([
             ('pricelist_id', 'in', self.ids),

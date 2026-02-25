@@ -1,6 +1,7 @@
 # See LICENSE file for full copyright and licensing details.
 
-from odoo import api, models, fields
+from odoo import api, models, fields, _
+from odoo.exceptions import UserError
 
 
 class ProductFeatureValue(models.Model):
@@ -37,9 +38,16 @@ class ProductFeatureValue(models.Model):
     def to_export_format(self, integration):
         self.ensure_one()
 
+        feature_code = self.feature_id.to_external_or_export(integration)
+
+        if not self.feature_id:
+            raise UserError(_(
+                'The external feature code cannot be empty for the feature value "%s".\n\n'
+            ) % self.name)
+
         return {
-            'feature_id': self.feature_id.to_external_or_export(integration),
-            'name': integration.convert_translated_field_to_integration_format(self, 'name'),
+            'feature_id': feature_code,
+            'name': self.convert_field_translations_to_external(integration.id, 'name'),
         }
 
     def export_with_integration(self, integration):

@@ -33,7 +33,8 @@
     </record>
 
     <record id="product_public_category_action" model="ir.actions.act_window">
-        <field name="name">eCommerce Categories</field>
+        <field name="name">E-Commerce Categories</field>
+        <field name="path">eci-public-product-categories</field>
         <field name="type">ir.actions.act_window</field>
         <field name="res_model">product.public.category</field>
         <field name="view_mode">list,form</field>

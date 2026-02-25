@@ -7,96 +7,119 @@ from ...exceptions import ApiImportError
 
 
 REFUND_FOUND_ERROR = """\n\n
-The order includes a "refund" transaction, which cannot be applied automatically.
-To proceed, choose one of the following options:
+⚠️  REFUND TRANSACTION DETECTED ⚠️
 
-- Adjust Auto-Workflow Settings
-    - Uncheck the "Auto-Apply Payments from E-Commerce System" option in the
-      E-Commerce Integrations → Stores → <Your Store> → Sales Orders tab.
-    - Re-run this job to validate the invoice and register payments automatically.
-      The connector will ignore transaction details from the e-commerce system and register payment based on
-      validated invoice instead.
+This order contains a refund transaction that cannot be processed automatically.
 
-- Manually Process Transactions
-    - Open sales order in Odoo and review transaction details in the E-Commerce Integration tab.
-    - Process payments and refunds manually in the associated Odoo invoice to align with the e-commerce system.
-    - Mark the auto-workflow steps as completed after adjustments ("Integration Workflow" button on sales order in Odoo)
+To resolve this issue, please choose one of the following options:
+
+OPTION 1: Adjust Auto-Workflow Settings
+    • Go to E-Commerce Integrations → Stores → [Your Store] → Sales Orders tab
+    • Uncheck "Auto-Apply Payments from E-Commerce System"
+    • Re-run the integration job to validate invoices and register payments automatically
+    • The system will ignore e-commerce transaction details and use validated invoice data instead
+
+OPTION 2: Manual Transaction Processing
+    • Open the sales order in Odoo
+    • Review transaction details in the E-Commerce Integration tab
+    • Process payments and refunds manually in the associated invoice
+    • Mark auto-workflow steps as completed using the "Integration Workflow" button
+
+For assistance, contact your system administrator or refer to the integration documentation.
 """
 
 
 class ExternalOrderTransaction(models.Model):
     _name = 'external.order.transaction'
     _inherit = 'external.order.resource'
-    _description = 'External Order Transaction'
+    _description = 'External Order Payment Transaction'
 
     transaction = fields.Char(
         string='Transaction ID',
+        help='Unique identifier for this payment transaction',
     )
     kind = fields.Selection(
         selection=[
-            ('authorization', 'Authorization'),
-            ('capture', 'Capture'),
-            ('sale', 'Sale'),
-            ('void', 'Void'),
-            ('refund', 'Refund'),
-            ('other', 'Other'),
+            ('authorization', 'Payment Authorization'),
+            ('capture', 'Payment Capture'),
+            ('sale', 'Direct Sale'),
+            ('void', 'Transaction Void'),
+            ('refund', 'Payment Refund'),
+            ('other', 'Other Transaction'),
         ],
-        string='Type',
+        string='Transaction Type',
         default='other',
         help="""
-            - authorization: Money that the customer has agreed to pay.
-                The authorization period can be between 7 and 30 days (depending on your payment service)
-                while a store waits for a payment to be captured.
-            - capture: A transfer of money that was reserved during the authorization of a shop.
-            - sale: The authorization and capture of a payment performed in one single step.
-            - void: The cancellation of a pending authorization or capture.
-            - refund: The partial or full return of captured money to the customer.
-            - other: Any other type of transaction.
+            Payment Authorization: Customer approval to charge their payment method
+                (valid for 7-30 days depending on your payment processor)
+
+            Payment Capture: Transfer of previously authorized funds to your account
+
+            Direct Sale: Immediate authorization and capture in a single transaction
+
+            Transaction Void: Cancellation of a pending authorization or capture
+
+            Payment Refund: Return of captured funds to the customer
+
+            Other Transaction: Any other transaction type not listed above
         """,
     )
     amount = fields.Char(
-        string='Amount',
+        string='Transaction Amount',
+        help='Payment amount in the original currency',
     )
     currency = fields.Char(
-        string='Currency',
+        string='Currency Code',
+        help='ISO currency code (e.g., USD, EUR, GBP)',
     )
     gateway = fields.Char(
-        string='Gateway',
+        string='Payment Gateway',
+        help='Payment processor or gateway used (e.g., Stripe, PayPal, Square)',
     )
     external_parent_str_id = fields.Char(
-        string='Parent ID',
+        string='Parent Transaction ID',
+        help='Reference to the original transaction for refunds or captures',
     )
     payment_ids = fields.One2many(
         comodel_name='account.payment',
         inverse_name='integration_transaction_id',
-        string='Payments',
+        string='Odoo Payments',
+        help='Associated payment records created in Odoo',
     )
     external_process_date = fields.Date(
-        string='Process Date',
+        string='Transaction Date',
         default=fields.Date.today,
+        help='Date when the transaction was processed in the external system',
     )
 
     def _compute_display_name(self):
+        """Generate a user-friendly display name for the transaction"""
         for rec in self:
             rec.display_name = f'{rec.erp_order_id.name}: {rec.name}'
 
     def _compute_is_ecommerce_ok(self):
+        """Check if the transaction status allows processing in Odoo"""
         for rec in self:
             rec.is_ecommerce_ok = (rec.external_status == 'success')
 
     @property
     def float_amount(self):
+        """Convert amount string to float for calculations"""
         return float(self.amount)
 
     @property
     def is_refund(self):
+        """Check if this is a refund transaction"""
         return self.kind == 'refund'
 
     def _validate(self):
         """
-        Apply received order payment in Odoo.
+        Process the external payment transaction in Odoo.
 
-        :return: tuple(bool, int)
+        Creates payment records and reconciles them with unpaid invoices.
+
+        Returns:
+            tuple: (success, payment_ids)
         """
         self.internal_info = False
 
@@ -104,7 +127,7 @@ class ExternalOrderTransaction(models.Model):
             return True, []
 
         if not self.is_ecommerce_ok:
-            self.internal_info = _('Skipped due to external restrictions')
+            self.internal_info = _('Transaction skipped - external status does not allow processing')
             self.mark_skipped()
             return False, []
 
@@ -112,7 +135,7 @@ class ExternalOrderTransaction(models.Model):
             .filtered(lambda x: x.invoice_is_posted and x.invoice_to_pay)
 
         if not invoices:
-            self.internal_info = _('There are no unpaid invoices.')
+            self.internal_info = _('No unpaid invoices found for this order')
             self.mark_skipped()
             return False, []
 
@@ -134,7 +157,7 @@ class ExternalOrderTransaction(models.Model):
         try:
             payments = wizard._create_payments()
         except (UserError, ValidationError) as ex:
-            self.internal_info = ex.args[0]
+            self.internal_info = f'Payment creation failed: {ex.args[0]}'
             self.mark_failed()
             return False, []
 
@@ -144,6 +167,7 @@ class ExternalOrderTransaction(models.Model):
         return True, payments.ids
 
     def get_journal(self):
+        """Get the appropriate payment journal for this transaction"""
         if self.gateway:
             payment_method = self.env['sale.order.payment.method'].from_external(self.integration_id, self.gateway)
             payment_method_external = payment_method.to_external_record(self.integration_id)
@@ -156,13 +180,14 @@ class ExternalOrderTransaction(models.Model):
         return journal.id
 
     def get_amount(self):
+        """Convert external amount to Odoo invoice currency"""
         external_currency = self.env['res.currency'].search([
             ('name', '=ilike', self.currency.lower()),
         ], limit=1)
 
         if not external_currency:
             raise ApiImportError(
-                _('Currency ISO code "%s" was not found in Odoo.') % self.currency
+                _('Currency "%s" is not configured in Odoo. Please add this currency to continue.') % self.currency
             )
 
         currency = self.erp_order_id.invoice_ids\
@@ -182,16 +207,24 @@ class ExternalOrderTransaction(models.Model):
         return amount
 
     def get_writeoff_account(self):
+        """Get the write-off account for payment differences"""
         writeoff_account = self.integration_id.integration_writeoff_account_id
 
         if not writeoff_account:
-            raise ValidationError(_('%s: No Write-Off Account defined. ') % self.integration_name)
+            raise ValidationError(
+                _(
+                    'Integration "%s": Write-off account is not configured. '
+                    'Please set up a write-off account in the integration settings.'
+                ) % self.integration_name
+            )
 
         return writeoff_account.id
 
     def _add_payment_ids(self, ids):
+        """Link created payment records to this transaction"""
         self.payment_ids = [(4, id_, 0) for id_ in ids]
 
     def _raise_if_refund_found(self):
+        """Check for unprocessed refund transactions and raise user-friendly error"""
         if any(x.is_refund for x in self if not x.is_done):
             raise ValidationError(REFUND_FOUND_ERROR)

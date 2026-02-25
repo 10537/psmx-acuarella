@@ -23,9 +23,9 @@
                     <field name="odoo_id"/>
                     <field name="external_id"/>
                     <field name="integration_id"/>
-                    <filter string="Not Mapped" name="not_mapped" domain="[('odoo_id', '=', False)]" />
+                    <filter string="Not Mapped" name="not_mapped" domain="[('odoo_id', '=', False)]"/>
                     <group expand="0" string="Group By">
-                        <filter string="Sale Integration" name="group_by_integration_id" context="{'group_by': 'integration_id'}"/>
+                        <filter string="E-Commerce Store" name="group_by_integration_id" context="{'group_by': 'integration_id'}"/>
                     </group>
                 </search>
             </field>
@@ -33,6 +33,7 @@
 
         <record id="integration_sale_order_sub_status_mapping_action" model="ir.actions.act_window">
             <field name="name">Order Status Mappings</field>
+            <field name="path">eci-order-status-mappings</field>
             <field name="res_model">integration.sale.order.sub.status.mapping</field>
             <field name="view_mode">list</field>
             <field name="context">{'search_default_not_mapped': 1}</field>

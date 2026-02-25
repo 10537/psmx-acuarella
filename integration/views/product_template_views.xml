@@ -58,6 +58,8 @@ if records:
         <field name="arch" type="xml">
             <xpath expr="//filter[@name='inactive']" position="after">
                 <separator/>
+                <filter string="With Bill of Materials" name="with_bom" domain="[('bom_ids', '!=', False)]"/>
+                <separator/>
                 <filter string="E-Commerce Store(s) set (on all variants)" name="all_integrations_set" domain="[('integration_ids', '!=', False)]"/>
                 <filter string="No E-Commerce Store(s) set (on any variant)" name="no_integrations_set" domain="[('integration_ids', '=', False)]"/>
                 <filter string="E-Commerce Store(s) set (on some variants)" name="partial_integrations_set" domain="[('integration_ids', '=', -1)]"/>
@@ -76,90 +78,169 @@ if records:
             <group name="upsell" position="attributes">
                 <attribute name="invisible">0</attribute>
             </group>
-            <group name="upsell" position="inside">
-                <field name="optional_product_ids"
-                    widget="many2many_tags"
-                    options="{'color_field': 'color'}"
-                    domain="[('id', '!=', id), '|', ('company_id', '=', company_id), ('company_id', '=', False)]"
-                    groups="product.group_product_variant" />
-            </group>
+
             <xpath expr="//page[@name='sales']" position="after">
                 <page name="shop" string="E-Commerce Integration">
                     <field name="bom_ids" invisible="1" groups="mrp.group_mrp_user"/> <!-- Required because it is used in the invisible condition below -->
+
+                    <!-- BOM Warning Alert -->
                     <div class="row mx-0" colspan="2" invisible="product_variant_count &lt; 2 or not bom_ids" groups="mrp.group_mrp_user">
-                        <div class="border border-warning p-3">
-                            <h4>Attention</h4>
-                            The product you are working with contains multiple variants and has an associated Bill of Materials (BOM).
-                            Consequently, it will be exported to the e-commerce system as a configurable product without displaying any individual components.
+                        <div class="alert alert-warning" role="alert">
+                            <h4><i class="fa fa-warning" title="Attention"/> Attention</h4>
+                            <p class="mb-0">
+                                This product contains multiple variants and has an associated Bill of Materials (BOM).
+                                It will be exported to the e-commerce system as a configurable product without displaying individual components.
+                            </p>
                         </div>
                     </div>
-                    <group name="shop_group">
-                        <group name="integrations" string="Stores">
-                            <div name="configure_message" colspan="4">
-                                <div class="alert alert-info" role="alert"
-                                     invisible="not id or product_variant_count &lt;= 1 or is_product_variant">
-                                    Product has several variants. You need to configure if product should be synced
-                                    to specific e-commerce system on Product Variant level.
+
+                    <!-- Store Configuration Section -->
+                    <group name="store_configuration">
+                        <!-- Information Panel -->
+                        <group name="integration_info" string="How E-Commerce Integration Works">
+                            <div class="alert alert-info" role="alert" colspan="2">
+                                <p class="mb-2">
+                                    <i class="fa fa-info-circle" title="Information"/>
+                                    This tab allows you to configure how your product appears and behaves in your e-commerce stores
+                                    (Shopify, WooCommerce, PrestaShop, Magento2, etc.).
+                                </p>
+                                <p class="mb-2">
+                                    <strong>Quick Setup:</strong>
+                                </p>
+                                <ul class="mb-0">
+                                    <li>Select which stores to sync with</li>
+                                    <li>Customize product information for stores</li>
+                                    <li>Set up categories and features</li>
+                                    <li>Add product images and media</li>
+                                </ul>
+                            </div>
+                        </group>
+
+                        <!-- Store Selection -->
+                        <group name="integrations" string="E-Commerce Stores">
+                            <div colspan="2">
+                                <div class="alert alert-info" role="alert" invisible="not id or product_variant_count &lt;= 1 or is_product_variant">
+                                    <i class="fa fa-info-circle" title="Information"/>
+                                    This product has multiple variants. Store synchronization must be configured at the Product Variant level.
                                 </div>
                             </div>
-                            <group colspan="2" name="integrations_field" invisible="product_variant_count > 1 and not is_product_variant">
+                            <group colspan="2" name="integrations_field" invisible="product_variant_count &gt; 1 and not is_product_variant">
                                 <field name="integration_ids" widget="many2many_checkboxes"/>
                             </group>
-                            <group colspan="2" name="synchronization">
-                                <field name="exclude_from_synchronization" />
-                                <field name="exclude_from_synchronization_stock" />
+                            <group colspan="2" name="synchronization_settings">
+                                <field name="exclude_from_synchronization" help="Check to prevent this product from being exported to any e-commerce store"/>
+                                <field name="exclude_from_synchronization_stock" help="Check to prevent stock levels from being synchronized with e-commerce stores"/>
                             </group>
                         </group>
-                        <div name="shop">
-                            <group string="Shop" style="width:100%%">
-                                <field name="default_public_categ_id" domain="[('id', 'in', public_filter_categ_ids)]" options="{'no_create': True, 'no_edit': True}"/>
-                            </group>
-                            <separator/>
-                            <label for="public_categ_ids" string="Categories"/>
+                    </group>
+
+                    <!-- Product Information Section -->
+                    <group name="product_information" string="Product Information">
+                        <div colspan="2">
+                            <div class="alert alert-info" role="alert">
+                                <p class="mb-0">
+                                    <i class="fa fa-info-circle" title="Information"/>
+                                    Customize how this product appears in your e-commerce stores.
+                                    These fields override the standard product information when syncing to stores.
+                                </p>
+                            </div>
+                        </div>
+                        <group colspan="2">
+                            <field name="website_product_name" help="Custom product name for e-commerce stores. If empty, the standard product name will be used."/>
+                            <field name="website_short_description" help="Brief description shown in product listings and search results"/>
+                            <field name="website_description" help="Detailed product description shown on the product page"/>
+                        </group>
+                    </group>
+
+                    <!-- Categories and Features Section -->
+                    <group name="categorization">
+                        <group string="Categories">
+                            <field name="default_public_categ_id" domain="[('id', 'in', public_filter_categ_ids)]" options="{'no_create': True, 'no_edit': True}" help="Primary category for this product in e-commerce stores"/>
                             <field name="public_categ_ids" widget="many2many">
-                                <list string="Public Categories" >
+                                <list string="Additional Categories">
                                     <field name="display_name" nolabel="1"/>
                                 </list>
                             </field>
-                            <field name="public_filter_categ_ids" widget="many2many_tags" invisible="1"/> <!-- Required because it is used in the fields domains in the model -->
-                            <separator/>
-                            <label for="feature_line_ids"/>
-                            <field name="feature_line_ids" widget="one2many" nolabel="1">
-                                <list editable="bottom">
-                                    <field name="feature_id"/>
-                                    <field name="feature_value_id" context="{'default_feature_id': feature_id}"/>
+                            <field name="public_filter_categ_ids" widget="many2many_tags" invisible="1"/>  <!-- Required because it is used in the fields domains in the model -->
+                        </group>
+
+                        <group string="Product Features">
+                            <field name="feature_line_ids" widget="one2many" nolabel="1" colspan="2">
+                                <list editable="bottom" string="Product Features">
+                                    <field name="feature_id" help="Select a feature (e.g., Color, Size, Material)"/>
+                                    <field name="feature_value_id" context="{'default_feature_id': feature_id}" help="Select the specific value for this feature"/>
                                 </list>
                             </field>
+                        </group>
+
+                    </group>
+
+                    <!-- SEO Section -->
+                    <group string="SEO Settings" colspan="2">
+                        <div colspan="2">
+                            <div class="alert alert-info" role="alert">
+                                <p class="mb-0">
+                                    <i class="fa fa-info-circle" title="Information"/>
+                                    Configure search engine optimization settings for your product.
+                                    <strong>Important:</strong> Field mappings for these SEO fields must be enabled in your integration settings
+                                    for this information to be synchronized to your e-commerce stores.
+                                </p>
+                            </div>
+                        </div>
+                        <field name="website_seo_metatitle" help="Meta title for search engines (recommended: 50-60 characters)"/>
+                        <field name="website_seo_description" help="Meta description for search engines (recommended: 150-160 characters)"/>
+
+                        <field name="external_tag_group_ids" colspan="2" context="{'default_product_tmpl_id': id}">
+                            <list editable="bottom" string="Tags by Store" create="1">
+                                <field name="integration_type_api" column_invisible="1"/>
+                                <field name="integration_id" options="{'no_create': True}" domain="[('type_api', 'in', ('shopify', 'prestashop'))]"/>
+                                <field name="tag_ids"
+                                       widget="many2many_tags"
+                                       readonly="not integration_id"
+                                       context="{'default_ttype': 'product', 'default_integration_id': integration_id, 'default_external_language_id': external_language_id}"
+                                />
+                            </list>
+                        </field>
+                    </group>
+
+                    <!-- Store Specific Settings Section -->
+                    <group name="store_specific_settings">
+                        <!-- Content will be added here dynamically based on the selected stores -->
+                    </group>
+
+                    <!-- Media Section -->
+                    <group name="media_section" string="Extra Product Images">
+                        <div colspan="2">
+                            <div class="alert alert-info" role="alert">
+                                <p class="mb-0">
+                                    <i class="fa fa-info-circle" title="Information"/>
+                                    Add additional images for your product.
+                                    These will be synchronized to your e-commerce stores to showcase your product.
+                                </p>
+                            </div>
                         </div>
 
-                        <group string="SEO">
-                            <field name="website_seo_metatitle"/>
-                            <field name="website_seo_description"/>
+                        <group name="product_template_images" colspan="2">
+                            <field name="product_template_image_ids"
+                                   colspan="2"
+                                   class="o_website_sale_image_list"
+                                   context="{'default_name': name}"
+                                   mode="kanban"
+                                   add-label="Add Image"
+                                   nolabel="1"
+                                   widget="x2_many_media_viewer"
+                            />
+
+                            <button type="object"
+                                    name="export_images_to_integration"
+                                    context="{'integration_erase_mappings': True}"
+                                    string="Export Images Only"
+                                    groups="base.group_no_one"
+                                    colspan="2"
+                                    help="Export only the product images to e-commerce stores without updating other product data"
+                            />
                         </group>
                     </group>
-
-                    <group string="Product Name">
-                        <field name="website_product_name" nolabel="1" colspan="2"/>
-                    </group>
-
-                    <group string="Short Description">
-                        <field name="website_short_description" nolabel="1" colspan="2"/>
-                    </group>
-
-                    <group string="Description">
-                        <field name="website_description" nolabel="1" colspan="2"/>
-                    </group>
-
-                    <group name="product_template_images" string="Extra Product Media" col="4">
-                        <field name="product_template_image_ids" colspan="2" class="o_website_sale_image_list" context="{'default_name': name}" mode="kanban" options="{'create_text':'Add a Media'}" nolabel="1"/>
-                        <button type="object"
-                                name="export_images_to_integration"
-                                context="{'integration_erase_mappings': True}"
-                                string="Export Images Only"
-                                groups="base.group_no_one"
-                                colspan="2"/>
-                    </group>
-
                 </page>
             </xpath>
         </field>
@@ -176,7 +257,7 @@ if records:
                     type="action"
                     icon="fa-sitemap"
                     class="oe_stat_button"
-                    groups="base.group_no_one"
+                    groups="product.group_product_variant"
                     invisible="product_variant_count &gt;= 2">
                     <field string="Variants" name="product_variant_count" widget="statinfo"/>
                 </button>
@@ -186,13 +267,13 @@ if records:
                     name="action_integration_mappings"
                     type="object"
                     icon="fa-list-ul"
-                    help="Number of mappings"
-                    groups="base.group_no_one">
+                    help="E-Commerce Store Mappings"
+                    invisible="not mapping_count">
                     <div class="o_field_widget o_stat_info">
                         <span class="o_stat_value">
                             <field name="mapping_count" widget="statinfo" nolabel="1" class="mr4"/>
                         </span>
-                        <span class="o_stat_text">Mappings</span>
+                        <span class="o_stat_text">Store Mappings</span>
                     </div>
                 </button>
             </div>
@@ -208,8 +289,8 @@ if records:
             </xpath>
             <xpath expr="//page[@name='variants']/field/list/field[@name='value_ids']" position="replace">
                 <field name="value_ids" style="width: 100%" widget="many2many_tags" options="{'no_create_edit': True, 'color_field': 'color'}" context="{'default_attribute_id': attribute_id, 'show_attribute': False}"/>
-                <field name="exclude_from_synchronization" />
-                <field name="is_dynamic_creation_mode" />
+                <field name="exclude_from_synchronization"/>
+                <field name="is_dynamic_creation_mode"/>
             </xpath>
         </field>
     </record>

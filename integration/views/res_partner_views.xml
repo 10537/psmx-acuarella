@@ -29,7 +29,7 @@
         <field name="inherit_id" ref="base.view_partner_tree"/>
         <field name="arch" type="xml">
             <xpath expr="//field[@name='complete_name']" position="before">
-                <field name="id" optional="hide" />
+                <field name="id" optional="hide"/>
             </xpath>
         </field>
     </record>

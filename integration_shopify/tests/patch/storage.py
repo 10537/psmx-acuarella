@@ -1,1161 +1,1400 @@
 # See LICENSE file for full copyright and licensing details.
+# flake8: noqa
+# pylint: skip-file
+
+import json
+
 
 STORAGE_STR = """
 {
+    "product": {
+        "10203545100500": {
+            "id": "gid://shopify/Product/10203545100500",
+            "title": "E-guitar-test_az1u28399",
+            "status": "ACTIVE",
+            "productType": "",
+            "tags": [
+                "e-guitar",
+                "guitar"
+            ],
+            "descriptionHtml": "<p>It's just an e-guitar..</p>",
+            "options": [
+                {
+                    "id": "gid://shopify/ProductOption/12558075167012",
+                    "name": "Instrument color",
+                    "position": 1,
+                    "optionValues": [
+                        {
+                            "id": "gid://shopify/ProductOptionValue/5311845237028",
+                            "name": "Gold"
+                        },
+                        {
+                            "id": "gid://shopify/ProductOptionValue/5311845269796",
+                            "name": "Bronze"
+                        }
+                    ]
+                },
+                {
+                    "id": "gid://shopify/ProductOption/12558075199780",
+                    "name": "Neck material",
+                    "position": 2,
+                    "optionValues": [
+                        {
+                            "id": "gid://shopify/ProductOptionValue/5311845302564",
+                            "name": "Boxwood"
+                        },
+                        {
+                            "id": "gid://shopify/ProductOptionValue/5311845335332",
+                            "name": "Wood"
+                        }
+                    ]
+                }
+            ],
+            "metafields": {
+                "nodes": [
+                    {
+                        "id": "gid://shopify/Metafield/44607859654948",
+                        "namespace": "custom",
+                        "key": "meta1",
+                        "value": "e-guitar-meta1-info",
+                        "type": "single_line_text_field",
+                        "ownerType": "PRODUCT"
+                    },
+                    {
+                        "id": "gid://shopify/Metafield/44607859687716",
+                        "namespace": "shopify",
+                        "key": "instrument-color",
+                        "value": "[\\"gid://shopify/Metaobject/107581145380\\",\\"gid://shopify/Metaobject/208633430308\\"]",
+                        "type": "list.metaobject_reference",
+                        "ownerType": "PRODUCT"
+                    },
+                    {
+                        "id": "gid://shopify/Metafield/44607859720484",
+                        "namespace": "shopify",
+                        "key": "neck-material",
+                        "value": "[\\"gid://shopify/Metaobject/208633463076\\",\\"gid://shopify/Metaobject/208633495844\\"]",
+                        "type": "list.metaobject_reference",
+                        "ownerType": "PRODUCT"
+                    },
+                    {
+                        "id": "gid://shopify/Metafield/44608666566948",
+                        "namespace": "global",
+                        "key": "description_tag",
+                        "value": "It's just an e-guitar meta description",
+                        "type": "string",
+                        "ownerType": "PRODUCT"
+                    },
+                                        {
+                        "id": "gid://shopify/Metafield/44609793327396",
+                        "namespace": "global",
+                        "key": "title_tag",
+                        "value": "E-guitar-test_az1u28399-page-title",
+                        "type": "string",
+                        "ownerType": "PRODUCT"
+                    }
+                ]
+            },
+            "collections": {
+                "nodes": [
+                    {
+                        "id": "gid://shopify/Collection/440312267044",
+                        "title": "OUTLET",
+                        "description": ""
+                    },
+                    {
+                        "id": "gid://shopify/Collection/440313119012",
+                        "title": "Classic",
+                        "description": ""
+                    }
+                ]
+            },
+            "hasOnlyDefaultVariant": false,
+            "category": {
+                "id": "gid://shopify/TaxonomyCategory/ae-2-8-7-2-4",
+                "name": "Electric Guitars",
+                "fullName": "Arts & Entertainment > Hobbies & Creative Arts > Musical Instruments > String Instruments > Guitars > Electric Guitars",
+                "parentId": "gid://shopify/TaxonomyCategory/ae-2-8-7-2"
+            },
+            "variantsCount": {
+                "count": 4
+            },
+            "featuredMedia": null,
+            "media": {
+                "nodes": []
+            },
+            "variants": {
+                "nodes": [
+                    {
+                        "id": "gid://shopify/ProductVariant/51158197731620",
+                        "product": {
+                            "id": "gid://shopify/Product/10203545100500",
+                            "hasOnlyDefaultVariant": false,
+                            "options": [
+                                {
+                                    "id": "gid://shopify/ProductOption/12558075167012",
+                                    "name": "Instrument color",
+                                    "position": 1,
+                                    "optionValues": [
+                                        {
+                                            "id": "gid://shopify/ProductOptionValue/5311845237028",
+                                            "name": "Gold"
+                                        },
+                                        {
+                                            "id": "gid://shopify/ProductOptionValue/5311845269796",
+                                            "name": "Bronze"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "id": "gid://shopify/ProductOption/12558075199780",
+                                    "name": "Neck material",
+                                    "position": 2,
+                                    "optionValues": [
+                                        {
+                                            "id": "gid://shopify/ProductOptionValue/5311845302564",
+                                            "name": "Boxwood"
+                                        },
+                                        {
+                                            "id": "gid://shopify/ProductOptionValue/5311845335332",
+                                            "name": "Wood"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        "metafields": {
+                            "nodes": []
+                        },
+                        "availableForSale": true,
+                        "sku": "e-guitar-gold-box-test_mdx3xoxx",
+                        "barcode": "321321321321",
+                        "price": "543.00",
+                        "taxable": true,
+                        "taxCode": "",
+                        "title": "Gold / Boxwood",
+                        "inventoryQuantity": 235,
+                        "compareAtPrice": "500.00",
+                        "inventoryItem": {
+                            "id": "gid://shopify/InventoryItem/53159185875236",
+                            "inventoryLevels": {
+                                "nodes": [
+                                    {
+                                        "id": "gid://shopify/InventoryLevel/109531201828?inventory_item_id=53159185875236",
+                                        "location": {
+                                            "id": "gid://shopify/Location/73153839396"
+                                        },
+                                        "quantities": [
+                                            {
+                                                "id": "gid://shopify/InventoryQuantity/109531201828?inventory_item_id=53159185875236&name=available",
+                                                "name": "available",
+                                                "quantity": 112
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "id": "gid://shopify/InventoryLevel/116688486692?inventory_item_id=53159185875236",
+                                        "location": {
+                                            "id": "gid://shopify/Location/80295690532"
+                                        },
+                                        "quantities": [
+                                            {
+                                                "id": "gid://shopify/InventoryQuantity/116688486692?inventory_item_id=53159185875236&name=available",
+                                                "name": "available",
+                                                "quantity": 123
+                                            }
+                                        ]
+                                    }
+                                ]
+                            },
+                            "measurement": {
+                                "weight": {
+                                    "unit": "KILOGRAMS",
+                                    "value": 4.0
+                                }
+                            },
+                            "unitCost": {
+                                "amount": "490.0",
+                                "currencyCode": "PLN"
+                            },
+                            "variant": {
+                                "id": "gid://shopify/ProductVariant/51158197731620"
+                            }
+                        },
+                        "selectedOptions": [
+                            {
+                                "name": "Instrument color",
+                                "value": "Gold",
+                                "optionValue": {
+                                    "id": "gid://shopify/ProductOptionValue/5311845237028",
+                                    "name": "Gold"
+                                }
+                            },
+                            {
+                                "name": "Neck material",
+                                "value": "Boxwood",
+                                "optionValue": {
+                                    "id": "gid://shopify/ProductOptionValue/5311845302564",
+                                    "name": "Boxwood"
+                                }
+                            }
+                        ],
+                        "media": {
+                            "nodes": []
+                        }
+                    },
+                    {
+                        "id": "gid://shopify/ProductVariant/51158197764388",
+                        "product": {
+                            "id": "gid://shopify/Product/10203545100500",
+                            "hasOnlyDefaultVariant": false,
+                            "options": [
+                                {
+                                    "id": "gid://shopify/ProductOption/12558075167012",
+                                    "name": "Instrument color",
+                                    "position": 1,
+                                    "optionValues": [
+                                        {
+                                            "id": "gid://shopify/ProductOptionValue/5311845237028",
+                                            "name": "Gold"
+                                        },
+                                        {
+                                            "id": "gid://shopify/ProductOptionValue/5311845269796",
+                                            "name": "Bronze"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "id": "gid://shopify/ProductOption/12558075199780",
+                                    "name": "Neck material",
+                                    "position": 2,
+                                    "optionValues": [
+                                        {
+                                            "id": "gid://shopify/ProductOptionValue/5311845302564",
+                                            "name": "Boxwood"
+                                        },
+                                        {
+                                            "id": "gid://shopify/ProductOptionValue/5311845335332",
+                                            "name": "Wood"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        "metafields": {
+                            "nodes": [
+                                {
+                                    "id": "gid://shopify/Metafield/44607890522404",
+                                    "namespace": "custom",
+                                    "key": "meta_v1",
+                                    "value": "e-guitar-gold-wood-test_mdx3xoxx-meta-v",
+                                    "type": "single_line_text_field",
+                                    "ownerType": "PRODUCTVARIANT"
+                                }
+                            ]
+                        },
+                        "availableForSale": false,
+                        "sku": "e-guitar-gold-wood-test_mdx3xoxx",
+                        "barcode": "321321321322",
+                        "price": "542.00",
+                        "taxable": true,
+                        "taxCode": "",
+                        "title": "Gold / Wood",
+                        "inventoryQuantity": 0,
+                        "compareAtPrice": "50100.00",
+                        "inventoryItem": {
+                            "id": "gid://shopify/InventoryItem/53159185908004",
+                            "inventoryLevels": {
+                                "nodes": [
+                                    {
+                                        "id": "gid://shopify/InventoryLevel/109531201828?inventory_item_id=53159185908004",
+                                        "location": {
+                                            "id": "gid://shopify/Location/73153839396"
+                                        },
+                                        "quantities": [
+                                            {
+                                                "id": "gid://shopify/InventoryQuantity/109531201828?inventory_item_id=53159185908004&name=available",
+                                                "name": "available",
+                                                "quantity": 0
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "id": "gid://shopify/InventoryLevel/116688486692?inventory_item_id=53159185908004",
+                                        "location": {
+                                            "id": "gid://shopify/Location/80295690532"
+                                        },
+                                        "quantities": [
+                                            {
+                                                "id": "gid://shopify/InventoryQuantity/116688486692?inventory_item_id=53159185908004&name=available",
+                                                "name": "available",
+                                                "quantity": 0
+                                            }
+                                        ]
+                                    }
+                                ]
+                            },
+                            "measurement": {
+                                "weight": {
+                                    "unit": "KILOGRAMS",
+                                    "value": 4.0
+                                }
+                            },
+                            "unitCost": {
+                                "amount": "485.0",
+                                "currencyCode": "PLN"
+                            },
+                            "variant": {
+                                "id": "gid://shopify/ProductVariant/51158197764388"
+                            }
+                        },
+                        "selectedOptions": [
+                            {
+                                "name": "Instrument color",
+                                "value": "Gold",
+                                "optionValue": {
+                                    "id": "gid://shopify/ProductOptionValue/5311845237028",
+                                    "name": "Gold"
+                                }
+                            },
+                            {
+                                "name": "Neck material",
+                                "value": "Wood",
+                                "optionValue": {
+                                    "id": "gid://shopify/ProductOptionValue/5311845335332",
+                                    "name": "Wood"
+                                }
+                            }
+                        ],
+                        "media": {
+                            "nodes": []
+                        }
+                    },
+                    {
+                        "id": "gid://shopify/ProductVariant/51158197797156",
+                        "product": {
+                            "id": "gid://shopify/Product/10203545100500",
+                            "hasOnlyDefaultVariant": false,
+                            "options": [
+                                {
+                                    "id": "gid://shopify/ProductOption/12558075167012",
+                                    "name": "Instrument color",
+                                    "position": 1,
+                                    "optionValues": [
+                                        {
+                                            "id": "gid://shopify/ProductOptionValue/5311845237028",
+                                            "name": "Gold"
+                                        },
+                                        {
+                                            "id": "gid://shopify/ProductOptionValue/5311845269796",
+                                            "name": "Bronze"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "id": "gid://shopify/ProductOption/12558075199780",
+                                    "name": "Neck material",
+                                    "position": 2,
+                                    "optionValues": [
+                                        {
+                                            "id": "gid://shopify/ProductOptionValue/5311845302564",
+                                            "name": "Boxwood"
+                                        },
+                                        {
+                                            "id": "gid://shopify/ProductOptionValue/5311845335332",
+                                            "name": "Wood"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        "metafields": {
+                            "nodes": [
+                                {
+                                    "id": "gid://shopify/Metafield/44607899762980",
+                                    "namespace": "custom",
+                                    "key": "meta_v1",
+                                    "value": "e-guitar-bronze-box-test_mdx3xoxx-meta-v",
+                                    "type": "single_line_text_field",
+                                    "ownerType": "PRODUCTVARIANT"
+                                }
+                            ]
+                        },
+                        "availableForSale": false,
+                        "sku": "e-guitar-bronze-box-test_mdx3xoxx",
+                        "barcode": "321321321323",
+                        "price": "541.00",
+                        "taxable": true,
+                        "taxCode": "",
+                        "title": "Bronze / Boxwood",
+                        "inventoryQuantity": 0,
+                        "compareAtPrice": "502.00",
+                        "inventoryItem": {
+                            "id": "gid://shopify/InventoryItem/53159185940772",
+                            "inventoryLevels": {
+                                "nodes": [
+                                    {
+                                        "id": "gid://shopify/InventoryLevel/109531201828?inventory_item_id=53159185940772",
+                                        "location": {
+                                            "id": "gid://shopify/Location/73153839396"
+                                        },
+                                        "quantities": [
+                                            {
+                                                "id": "gid://shopify/InventoryQuantity/109531201828?inventory_item_id=53159185940772&name=available",
+                                                "name": "available",
+                                                "quantity": 0
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "id": "gid://shopify/InventoryLevel/116688486692?inventory_item_id=53159185940772",
+                                        "location": {
+                                            "id": "gid://shopify/Location/80295690532"
+                                        },
+                                        "quantities": [
+                                            {
+                                                "id": "gid://shopify/InventoryQuantity/116688486692?inventory_item_id=53159185940772&name=available",
+                                                "name": "available",
+                                                "quantity": 0
+                                            }
+                                        ]
+                                    }
+                                ]
+                            },
+                            "measurement": {
+                                "weight": {
+                                    "unit": "KILOGRAMS",
+                                    "value": 4.0
+                                }
+                            },
+                            "unitCost": {
+                                "amount": "480.0",
+                                "currencyCode": "PLN"
+                            },
+                            "variant": {
+                                "id": "gid://shopify/ProductVariant/51158197797156"
+                            }
+                        },
+                        "selectedOptions": [
+                            {
+                                "name": "Instrument color",
+                                "value": "Bronze",
+                                "optionValue": {
+                                    "id": "gid://shopify/ProductOptionValue/5311845269796",
+                                    "name": "Bronze"
+                                }
+                            },
+                            {
+                                "name": "Neck material",
+                                "value": "Boxwood",
+                                "optionValue": {
+                                    "id": "gid://shopify/ProductOptionValue/5311845302564",
+                                    "name": "Boxwood"
+                                }
+                            }
+                        ],
+                        "media": {
+                            "nodes": []
+                        }
+                    },
+                    {
+                        "id": "gid://shopify/ProductVariant/51158197829924",
+                        "product": {
+                            "id": "gid://shopify/Product/10203545100500",
+                            "hasOnlyDefaultVariant": false,
+                            "options": [
+                                {
+                                    "id": "gid://shopify/ProductOption/12558075167012",
+                                    "name": "Instrument color",
+                                    "position": 1,
+                                    "optionValues": [
+                                        {
+                                            "id": "gid://shopify/ProductOptionValue/5311845237028",
+                                            "name": "Gold"
+                                        },
+                                        {
+                                            "id": "gid://shopify/ProductOptionValue/5311845269796",
+                                            "name": "Bronze"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "id": "gid://shopify/ProductOption/12558075199780",
+                                    "name": "Neck material",
+                                    "position": 2,
+                                    "optionValues": [
+                                        {
+                                            "id": "gid://shopify/ProductOptionValue/5311845302564",
+                                            "name": "Boxwood"
+                                        },
+                                        {
+                                            "id": "gid://shopify/ProductOptionValue/5311845335332",
+                                            "name": "Wood"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        "metafields": {
+                            "nodes": [
+                                {
+                                    "id": "gid://shopify/Metafield/44607924306212",
+                                    "namespace": "custom",
+                                    "key": "meta_v1",
+                                    "value": "e-guitar-gold-wood-test_mdx3xoxx-meta-v",
+                                    "type": "single_line_text_field",
+                                    "ownerType": "PRODUCTVARIANT"
+                                }
+                            ]
+                        },
+                        "availableForSale": false,
+                        "sku": "e-guitar-bronze-wood-test_mdx3xoxx",
+                        "barcode": "321321321324",
+                        "price": "539.00",
+                        "taxable": true,
+                        "taxCode": "",
+                        "title": "Bronze / Wood",
+                        "inventoryQuantity": 0,
+                        "compareAtPrice": "503.00",
+                        "inventoryItem": {
+                            "id": "gid://shopify/InventoryItem/53159185973540",
+                            "inventoryLevels": {
+                                "nodes": [
+                                    {
+                                        "id": "gid://shopify/InventoryLevel/109531201828?inventory_item_id=53159185973540",
+                                        "location": {
+                                            "id": "gid://shopify/Location/73153839396"
+                                        },
+                                        "quantities": [
+                                            {
+                                                "id": "gid://shopify/InventoryQuantity/109531201828?inventory_item_id=53159185973540&name=available",
+                                                "name": "available",
+                                                "quantity": 0
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "id": "gid://shopify/InventoryLevel/116688486692?inventory_item_id=53159185973540",
+                                        "location": {
+                                            "id": "gid://shopify/Location/80295690532"
+                                        },
+                                        "quantities": [
+                                            {
+                                                "id": "gid://shopify/InventoryQuantity/116688486692?inventory_item_id=53159185973540&name=available",
+                                                "name": "available",
+                                                "quantity": 0
+                                            }
+                                        ]
+                                    }
+                                ]
+                            },
+                            "measurement": {
+                                "weight": {
+                                    "unit": "KILOGRAMS",
+                                    "value": 4.0
+                                }
+                            },
+                            "unitCost": {
+                                "amount": "475.0",
+                                "currencyCode": "PLN"
+                            },
+                            "variant": {
+                                "id": "gid://shopify/ProductVariant/51158197829924"
+                            }
+                        },
+                        "selectedOptions": [
+                            {
+                                "name": "Instrument color",
+                                "value": "Bronze",
+                                "optionValue": {
+                                    "id": "gid://shopify/ProductOptionValue/5311845269796",
+                                    "name": "Bronze"
+                                }
+                            },
+                            {
+                                "name": "Neck material",
+                                "value": "Wood",
+                                "optionValue": {
+                                    "id": "gid://shopify/ProductOptionValue/5311845335332",
+                                    "name": "Wood"
+                                }
+                            }
+                        ],
+                        "media": {
+                            "nodes": []
+                        }
+                    }
+                ]
+            }
+        }
+    },
     "order": {
         "100500": {
-            "id": 100500,
-            "admin_graphql_api_id": "gid://shopify/Order/100500",
-            "app_id": 1354745,
-            "browser_ip": "37.157.207.175",
-            "buyer_accepts_marketing": false,
-            "cancel_reason": null,
-            "cancelled_at": null,
-            "cart_token": null,
-            "checkout_id": 38943405572388,
-            "checkout_token": "9229956ed8e00ade9d0c5a42abf2d654",
-            "client_details": {
-                "accept_language": null,
-                "browser_height": null,
-                "browser_ip": "37.157.207.175",
-                "browser_width": null,
-                "session_hash": null,
-                "user_agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:131.0) Gecko/20100101 Firefox/131.0"
-            },
-            "closed_at": "2024-10-08T14:07:59+02:00",
-            "company": null,
-            "confirmation_number": "ID2RFRKPX",
+            "id": "gid://shopify/Order/100500",
+            "name": "#1166",
+            "sourceName": "shopify_draft_order",
+            "email": "przecietny-kowalski222@mail.pl",
+            "phone": "+48123234456",
             "confirmed": true,
-            "contact_email": "przecietny-kowalski@mail.pl",
-            "created_at": "2024-10-08T14:03:31+02:00",
-            "currency": "PLN",
-            "current_subtotal_price": "1746.00",
-            "current_subtotal_price_set": {
-                "shop_money": {
-                    "amount": "1746.00",
-                    "currency_code": "PLN"
-                },
-                "presentment_money": {
-                    "amount": "1746.00",
-                    "currency_code": "PLN"
-                }
-            },
-            "current_total_additional_fees_set": null,
-            "current_total_discounts": "0.00",
-            "current_total_discounts_set": {
-                "shop_money": {
-                    "amount": "0.00",
-                    "currency_code": "PLN"
-                },
-                "presentment_money": {
-                    "amount": "0.00",
-                    "currency_code": "PLN"
-                }
-            },
-            "current_total_duties_set": null,
-            "current_total_price": "2147.58",
-            "current_total_price_set": {
-                "shop_money": {
-                    "amount": "2147.58",
-                    "currency_code": "PLN"
-                },
-                "presentment_money": {
-                    "amount": "2147.58",
-                    "currency_code": "PLN"
-                }
-            },
-            "current_total_tax": "401.58",
-            "current_total_tax_set": {
-                "shop_money": {
-                    "amount": "401.58",
-                    "currency_code": "PLN"
-                },
-                "presentment_money": {
-                    "amount": "401.58",
-                    "currency_code": "PLN"
-                }
-            },
-            "customer_locale": "pl",
-            "device_id": null,
-            "discount_codes": [],
-            "email": "przecietny-kowalski@mail.pl",
-            "estimated_taxes": false,
-            "financial_status": "paid",
-            "fulfillment_status": "fulfilled",
-            "landing_site": null,
-            "landing_site_ref": null,
-            "location_id": 73153839000,
-            "merchant_of_record_app_id": null,
-            "name": "#1166X01",
+            "cancelReason": null,
+            "cancelledAt": null,
+            "closedAt": "2024-10-08T12:07:59Z",
+            "createdAt": "2024-10-08T12:03:31Z",
+            "updatedAt": "2024-10-08T12:07:59Z",
+            "processedAt": "2024-10-08T12:03:30Z",
+            "displayFulfillmentStatus": "FULFILLED",
+            "displayFinancialStatus": "PAID",
+            "returnStatus": "NO_RETURN",
+            "customerLocale": "en",
+            "taxesIncluded": false,
+            "taxExempt": false,
+            "totalWeight": "19000",
+            "confirmationNumber": "ID2RFRKPX",
+            "discountCode": null,
+            "discountCodes": [],
+            "currencyCode": "PLN",
+            "presentmentCurrencyCode": "PLN",
+            "requiresShipping": true,
             "note": "Just note from customer",
-            "note_attributes": [],
-            "number": 166,
-            "order_number": 1166,
-            "order_status_url": "https://vendevstore2.myshopify.com/67679813924/orders/b54bbc9..",
-            "original_total_additional_fees_set": null,
-            "original_total_duties_set": null,
-            "payment_gateway_names": [
+            "fullyPaid": true,
+            "fulfillable": false,
+            "paymentGatewayNames": [
                 "manual_in_shopify_test"
             ],
-            "phone": "+48123234456",
-            "po_number": null,
-            "presentment_currency": "PLN",
-            "processed_at": "2024-10-08T14:03:30+02:00",
-            "reference": "f5ed20c92f64dd54248e735c02d74885",
-            "referring_site": null,
-            "source_identifier": "f5ed20c92f64dd54248e735c02d74885",
-            "source_name": "shopify_draft_order",
-            "source_url": null,
-            "subtotal_price": "1746.00",
-            "subtotal_price_set": {
-                "shop_money": {
-                    "amount": "1746.00",
-                    "currency_code": "PLN"
-                },
-                "presentment_money": {
-                    "amount": "1746.00",
-                    "currency_code": "PLN"
-                }
+            "tags": [
+                "ttag1",
+                "ttag2"
+            ],
+            "shippingLines": {
+                "nodes": []
             },
-            "tags": "ttag1, ttag2",
-            "tax_exempt": false,
-            "tax_lines": [
+            "taxLines": [
                 {
-                    "price": "401.58",
                     "rate": 0.23,
-                    "title": "PL VATt",
-                    "price_set": {
-                        "shop_money": {
-                            "amount": "401.58",
-                            "currency_code": "PLN"
-                        },
-                        "presentment_money": {
-                            "amount": "401.58",
-                            "currency_code": "PLN"
-                        }
-                    },
-                    "channel_liable": false
+                    "ratePercentage": 23.0,
+                    "source": "Shopify",
+                    "title": "PL VATt"
                 }
             ],
-            "taxes_included": false,
-            "test": false,
-            "token": "b54bbc957f6daed4f8dc2e088c7a7df6",
-            "total_discounts": "0.00",
-            "total_discounts_set": {
-                "shop_money": {
-                    "amount": "0.00",
-                    "currency_code": "PLN"
-                },
-                "presentment_money": {
-                    "amount": "0.00",
-                    "currency_code": "PLN"
+            "shippingLine": null,
+            "publication": null,
+            "risk": {
+                "assessments": [
+                    {
+                        "facts": [
+                            {
+                                "description": "Numer CVV (CVV) jest niedostępny",
+                                "sentiment": "NEUTRAL"
+                            },
+                            {
+                                "description": "Adres rozliczeniowy lub adres karty kredytowej nie był dostępny",
+                                "sentiment": "NEUTRAL"
+                            },
+                            {
+                                "description": "Kod pocztowy adresu rozliczeniowego nie jest dostępny dla ...",
+                                "sentiment": "NEUTRAL"
+                            },
+                            {
+                                "description": "Wykorzystano metodę płatności inną niż karta kredytowa",
+                                "sentiment": "NEUTRAL"
+                            },
+                            {
+                                "description": "Lokalizacja adresu IP użytego do złożenia zamówienia to Warsaw ...",
+                                "sentiment": "NEUTRAL"
+                            },
+                            {
+                                "description": "Odległość między adresem wysyłki a lokalizacją nie jest dostępna",
+                                "sentiment": "NEUTRAL"
+                            },
+                            {
+                                "description": "Wykonano 1 próbę płatności",
+                                "sentiment": "POSITIVE"
+                            },
+                            {
+                                "description": "Kraj rozliczenia pasuje do kraju, z którego zamówienie zostało złożone",
+                                "sentiment": "POSITIVE"
+                            }
+                        ],
+                        "riskLevel": "NONE"
+                    }
+                ],
+                "recommendation": "NONE"
+            },
+            "transactions": [
+                {
+                    "id": "gid://shopify/OrderTransaction/10679267000000",
+                    "order": {
+                        "id": "gid://shopify/Order/100500"
+                    },
+                    "paymentId": "rC16cqp2Dhpjj5XRS3NR7m11q",
+                    "kind": "SALE",
+                    "status": "SUCCESS",
+                    "gateway": "manual_in_shopify_test",
+                    "formattedGateway": "Manual",
+                    "amountSet": {
+                        "presentmentMoney": {
+                            "amount": "147.58",
+                            "currencyCode": "PLN"
+                        },
+                        "shopMoney": {
+                            "amount": "147.58",
+                            "currencyCode": "PLN"
+                        }
+                    },
+                    "parentTransaction": null,
+                    "processedAt": "2024-10-08T12:03:31Z"
                 }
+            ],
+            "fulfillmentOrders": {
+                "nodes": [
+                    {
+                        "id": "gid://shopify/FulfillmentOrder/10575833104676",
+                        "orderId": "gid://shopify/Order/100500",
+                        "status": "CLOSED",
+                        "lineItems": {
+                            "nodes": [
+                                {
+                                    "id": "gid://shopify/FulfillmentOrderLineItem/31136387170596",
+                                    "totalQuantity": 2,
+                                    "remainingQuantity": 0,
+                                    "sku": "gtp3-ref-2",
+                                    "lineItem": {
+                                        "id": "gid://shopify/LineItem/31108738842916"
+                                    }
+                                },
+                                {
+                                    "id": "gid://shopify/FulfillmentOrderLineItem/31136387203364",
+                                    "totalQuantity": 3,
+                                    "remainingQuantity": 0,
+                                    "sku": "guit1-sku-bl",
+                                    "lineItem": {
+                                        "id": "gid://shopify/LineItem/31108738875684"
+                                    }
+                                }
+                            ]
+                        },
+                        "assignedLocation": {
+                            "location": {
+                                "id": "gid://shopify/Location/73153839396"
+                            }
+                        },
+                        "deliveryMethod": {
+                            "id": "gid://shopify/DeliveryMethod/4932258562340",
+                            "presentedName": "shippinggg",
+                            "methodType": "SHIPPING",
+                            "serviceCode": "custom",
+                            "sourceReference": null
+                        }
+                    }
+                ]
             },
-            "total_line_items_price": "1746.00",
-            "total_line_items_price_set": {
-                "shop_money": {
-                    "amount": "1746.00",
-                    "currency_code": "PLN"
-                },
-                "presentment_money": {
-                    "amount": "1746.00",
-                    "currency_code": "PLN"
-                }
-            },
-            "total_outstanding": "0.00",
-            "total_price": "2147.58",
-            "total_price_set": {
-                "shop_money": {
-                    "amount": "2147.58",
-                    "currency_code": "PLN"
-                },
-                "presentment_money": {
-                    "amount": "2147.58",
-                    "currency_code": "PLN"
-                }
-            },
-            "total_shipping_price_set": {
-                "shop_money": {
-                    "amount": "0.00",
-                    "currency_code": "PLN"
-                },
-                "presentment_money": {
-                    "amount": "0.00",
-                    "currency_code": "PLN"
-                }
-            },
-            "total_tax": "401.58",
-            "total_tax_set": {
-                "shop_money": {
-                    "amount": "401.58",
-                    "currency_code": "PLN"
-                },
-                "presentment_money": {
-                    "amount": "401.58",
-                    "currency_code": "PLN"
-                }
-            },
-            "total_tip_received": "0.00",
-            "total_weight": 19000,
-            "updated_at": "2024-10-08T14:07:59+02:00",
-            "user_id": 87526211876,
-            "billing_address": {
-                "first_name": "Przeciętny",
-                "address1": "Górna 22",
-                "phone": null,
-                "city": "Warszawa",
-                "zip": "01-123",
-                "province": null,
-                "country": "Poland",
-                "last_name": "Kowalski",
-                "address2": null,
-                "company": null,
-                "latitude": 52.20149319999999,
-                "longitude": 21.0344366,
-                "name": "Przeciętny Kowalski",
-                "country_code": "PL",
-                "province_code": null
-            },
-            "customer": {
-                "id": 6670178025000,
-                "email": "przecietny-kowalski@mail.pl",
-                "created_at": "2022-11-09T19:09:56+01:00",
-                "updated_at": "2024-10-08T14:03:35+02:00",
-                "first_name": "Przeciętny",
-                "last_name": "Kowalski",
-                "state": "disabled",
-                "note": "VAT registration number: QWEc3166523129999",
-                "verified_email": true,
-                "multipass_identifier": null,
-                "tax_exempt": false,
-                "phone": "+48177774456",
-                "email_marketing_consent": {
-                    "state": "not_subscribed",
-                    "opt_in_level": "single_opt_in",
-                    "consent_updated_at": null
-                },
-                "sms_marketing_consent": {
-                    "state": "not_subscribed",
-                    "opt_in_level": "single_opt_in",
-                    "consent_updated_at": null,
-                    "consent_collected_from": "SHOPIFY"
-                },
-                "tags": "",
-                "currency": "PLN",
-                "tax_exemptions": [],
-                "admin_graphql_api_id": "gid://shopify/Customer/6670178025000",
-                "default_address": {
-                    "id": 9905196630308,
-                    "customer_id": 6670178025000,
-                    "first_name": "Przeciętny",
-                    "last_name": "Kowalski",
-                    "company": null,
-                    "address1": "Górna 22",
-                    "address2": null,
-                    "city": "Warszawa",
-                    "province": null,
-                    "country": "Poland",
-                    "zip": "01-123",
-                    "phone": null,
-                    "name": "Przeciętny Kowalski",
-                    "province_code": null,
-                    "country_code": "PL",
-                    "country_name": "Poland",
-                    "default": true
-                }
-            },
-            "discount_applications": [],
             "fulfillments": [
                 {
-                    "id": 5413320294692,
-                    "admin_graphql_api_id": "gid://shopify/Fulfillment/5413320294692",
-                    "created_at": "2024-10-08T14:07:41+02:00",
-                    "location_id": 73153839000,
-                    "name": "#1166X01.1",
-                    "order_id": 100500,
-                    "origin_address": {},
-                    "receipt": {},
-                    "service": "manual",
-                    "shipment_status": null,
-                    "status": "success",
-                    "tracking_company": "4PX",
-                    "tracking_number": "track-num1",
-                    "tracking_numbers": [
-                        "track-num1"
-                    ],
-                    "tracking_url": "http://track.4px.com/query/track-num1",
-                    "tracking_urls": [
-                        "http://track.4px.com/query/track-num1"
-                    ],
-                    "updated_at": "2024-10-08T14:07:41+02:00",
-                    "line_items": [
+                    "id": "gid://shopify/Fulfillment/5413320589604",
+                    "name": "#1166-F2",
+                    "status": "SUCCESS",
+                    "displayStatus": "FULFILLED",
+                    "totalQuantity": 3,
+                    "trackingInfo": [
                         {
-                            "id": 31108738842916,
-                            "admin_graphql_api_id": "gid://shopify/LineItem/31108738842916",
-                            "current_quantity": 2,
-                            "fulfillable_quantity": 0,
-                            "fulfillment_service": "manual",
-                            "fulfillment_status": "fulfilled",
-                            "gift_card": false,
-                            "grams": 2000,
-                            "name": "Guitar Pro3 - White",
-                            "price": "123.00",
-                            "price_set": {
-                                "shop_money": {
-                                    "amount": "123.00",
-                                    "currency_code": "PLN"
-                                },
-                                "presentment_money": {
-                                    "amount": "123.00",
-                                    "currency_code": "PLN"
-                                }
-                            },
-                            "product_exists": true,
-                            "product_id": 9154587918000,
-                            "properties": [],
-                            "quantity": 2,
-                            "requires_shipping": true,
-                            "sku": "gtp3-ref-2",
-                            "taxable": true,
-                            "title": "Guitar Pro3",
-                            "total_discount": "0.00",
-                            "total_discount_set": {
-                                "shop_money": {
-                                    "amount": "0.00",
-                                    "currency_code": "PLN"
-                                },
-                                "presentment_money": {
-                                    "amount": "0.00",
-                                    "currency_code": "PLN"
-                                }
-                            },
-                            "variant_id": 49620724449000,
-                            "variant_inventory_management": "shopify",
-                            "variant_title": "White",
-                            "vendor": "vendevstore2",
-                            "tax_lines": [
-                                {
-                                    "channel_liable": false,
-                                    "price": "56.58",
-                                    "price_set": {
-                                        "shop_money": {
-                                            "amount": "56.58",
-                                            "currency_code": "PLN"
-                                        },
-                                        "presentment_money": {
-                                            "amount": "56.58",
-                                            "currency_code": "PLN"
-                                        }
-                                    },
-                                    "rate": 0.23,
-                                    "title": "PL VATt"
-                                }
-                            ],
-                            "duties": [],
-                            "discount_allocations": []
+                            "number": "track-num2",
+                            "company": "AGS",
+                            "url": "https://tracking.agsystems.com/"
                         }
-                    ]
+                    ],
+                    "order": {
+                        "id": "gid://shopify/Order/100500"
+                    },
+                    "fulfillmentOrders": {
+                        "nodes": [
+                            {
+                                "id": "gid://shopify/FulfillmentOrder/10575833104676"
+                            }
+                        ]
+                    },
+                    "location": {
+                        "id": "gid://shopify/Location/73153839396"
+                    },
+                    "fulfillmentLineItems": {
+                        "nodes": [
+                            {
+                                "id": "gid://shopify/FulfillmentLineItem/13449096266020",
+                                "quantity": 3,
+                                "lineItem": {
+                                    "id": "gid://shopify/LineItem/31108738875684",
+                                    "sku": "guit1-sku-bl",
+                                    "quantity": 3,
+                                    "nonFulfillableQuantity": 0,
+                                    "variant": {
+                                        "id": "gid://shopify/ProductVariant/47738503495000",
+                                        "product": {
+                                            "id": "gid://shopify/Product/8991067530000"
+                                        }
+                                    }
+                                }
+                            }
+                        ]
+                    },
+                    "service": {
+                        "id": "gid://shopify/FulfillmentService/manual",
+                        "handle": "manual",
+                        "serviceName": "Ręcznie",
+                        "trackingSupport": false,
+                        "type": "MANUAL"
+                    },
+                    "updatedAt": "2024-10-08T12:07:59Z"
                 },
                 {
-                    "id": 5413320589604,
-                    "admin_graphql_api_id": "gid://shopify/Fulfillment/5413320589604",
-                    "created_at": "2024-10-08T14:07:59+02:00",
-                    "location_id": 73153839000,
-                    "name": "#1166X01.2",
-                    "order_id": 100500,
-                    "origin_address": {},
-                    "receipt": {},
-                    "service": "manual",
-                    "shipment_status": null,
-                    "status": "success",
-                    "tracking_company": "AGS",
-                    "tracking_number": "track-num2",
-                    "tracking_numbers": [
-                        "track-num2"
-                    ],
-                    "tracking_url": "https://tracking.agsystems.com/",
-                    "tracking_urls": [
-                        "https://tracking.agsystems.com/"
-                    ],
-                    "updated_at": "2024-10-08T14:07:59+02:00",
-                    "line_items": [
+                    "id": "gid://shopify/Fulfillment/5413320294692",
+                    "name": "#1166-F1",
+                    "status": "SUCCESS",
+                    "displayStatus": "FULFILLED",
+                    "totalQuantity": 2,
+                    "trackingInfo": [
                         {
-                            "id": 31108738875684,
-                            "admin_graphql_api_id": "gid://shopify/LineItem/31108738875684",
-                            "current_quantity": 3,
-                            "fulfillable_quantity": 0,
-                            "fulfillment_service": "manual",
-                            "fulfillment_status": "fulfilled",
-                            "gift_card": false,
-                            "grams": 5000,
-                            "name": "Guitar1 - Black",
-                            "price": "500.00",
-                            "price_set": {
-                                "shop_money": {
-                                    "amount": "500.00",
-                                    "currency_code": "PLN"
-                                },
-                                "presentment_money": {
-                                    "amount": "500.00",
-                                    "currency_code": "PLN"
-                                }
-                            },
-                            "product_exists": true,
-                            "product_id": 8991067530000,
-                            "properties": [],
-                            "quantity": 3,
-                            "requires_shipping": true,
-                            "sku": "guit1-sku-bl",
-                            "taxable": true,
-                            "title": "Guitar1",
-                            "total_discount": "0.00",
-                            "total_discount_set": {
-                                "shop_money": {
-                                    "amount": "0.00",
-                                    "currency_code": "PLN"
-                                },
-                                "presentment_money": {
-                                    "amount": "0.00",
-                                    "currency_code": "PLN"
-                                }
-                            },
-                            "variant_id": 47738503495000,
-                            "variant_inventory_management": "shopify",
-                            "variant_title": "Black",
-                            "vendor": "vendevstore2",
-                            "tax_lines": [
-                                {
-                                    "channel_liable": false,
-                                    "price": "345.00",
-                                    "price_set": {
-                                        "shop_money": {
-                                            "amount": "345.00",
-                                            "currency_code": "PLN"
-                                        },
-                                        "presentment_money": {
-                                            "amount": "345.00",
-                                            "currency_code": "PLN"
+                            "number": "track-num1",
+                            "company": "4PX",
+                            "url": "http://track.4px.com/query/track-num1"
+                        }
+                    ],
+                    "order": {
+                        "id": "gid://shopify/Order/100500"
+                    },
+                    "fulfillmentOrders": {
+                        "nodes": [
+                            {
+                                "id": "gid://shopify/FulfillmentOrder/10575833104676"
+                            }
+                        ]
+                    },
+                    "location": {
+                        "id": "gid://shopify/Location/73153839396"
+                    },
+                    "fulfillmentLineItems": {
+                        "nodes": [
+                            {
+                                "id": "gid://shopify/FulfillmentLineItem/13449095938340",
+                                "quantity": 2,
+                                "lineItem": {
+                                    "id": "gid://shopify/LineItem/31108738842916",
+                                    "sku": "gtp3-ref-2",
+                                    "quantity": 2,
+                                    "nonFulfillableQuantity": 0,
+                                    "variant": {
+                                        "id": "gid://shopify/ProductVariant/49620724449000",
+                                        "product": {
+                                            "id": "gid://shopify/Product/9154587918000"
                                         }
-                                    },
-                                    "rate": 0.23,
-                                    "title": "PL VATt"
+                                    }
                                 }
-                            ],
-                            "duties": [],
-                            "discount_allocations": []
-                        }
-                    ]
+                            }
+                        ]
+                    },
+                    "service": {
+                        "id": "gid://shopify/FulfillmentService/manual",
+                        "handle": "manual",
+                        "serviceName": "Ręcznie",
+                        "trackingSupport": false,
+                        "type": "MANUAL"
+                    },
+                    "updatedAt": "2024-10-08T12:07:41Z"
                 }
             ],
-            "line_items": [
-                {
-                    "id": 31108738842916,
-                    "admin_graphql_api_id": "gid://shopify/LineItem/31108738842916",
-                    "current_quantity": 2,
-                    "fulfillable_quantity": 0,
-                    "fulfillment_service": "manual",
-                    "fulfillment_status": "fulfilled",
-                    "gift_card": false,
-                    "grams": 2000,
-                    "name": "Guitar Pro3 - White",
-                    "price": "123.00",
-                    "price_set": {
-                        "shop_money": {
-                            "amount": "123.00",
-                            "currency_code": "PLN"
-                        },
-                        "presentment_money": {
-                            "amount": "123.00",
-                            "currency_code": "PLN"
-                        }
-                    },
-                    "product_exists": true,
-                    "product_id": 9154587918000,
-                    "properties": [],
-                    "quantity": 2,
-                    "requires_shipping": true,
-                    "sku": "gtp3-ref-2",
-                    "taxable": true,
-                    "title": "Guitar Pro3",
-                    "total_discount": "0.00",
-                    "total_discount_set": {
-                        "shop_money": {
-                            "amount": "0.00",
-                            "currency_code": "PLN"
-                        },
-                        "presentment_money": {
-                            "amount": "0.00",
-                            "currency_code": "PLN"
-                        }
-                    },
-                    "variant_id": 49620724449000,
-                    "variant_inventory_management": "shopify",
-                    "variant_title": "White",
-                    "vendor": "vendevstore2",
-                    "tax_lines": [
-                        {
-                            "channel_liable": false,
-                            "price": "56.58",
-                            "price_set": {
-                                "shop_money": {
-                                    "amount": "56.58",
-                                    "currency_code": "PLN"
-                                },
-                                "presentment_money": {
-                                    "amount": "56.58",
-                                    "currency_code": "PLN"
-                                }
-                            },
-                            "rate": 0.23,
-                            "title": "PL VATt"
-                        }
-                    ],
-                    "duties": [],
-                    "discount_allocations": []
+            "currentTotalPriceSet": {
+                "presentmentMoney": {
+                    "amount": "2147.58",
+                    "currencyCode": "PLN"
                 },
-                {
-                    "id": 31108738875684,
-                    "admin_graphql_api_id": "gid://shopify/LineItem/31108738875684",
-                    "current_quantity": 3,
-                    "fulfillable_quantity": 0,
-                    "fulfillment_service": "manual",
-                    "fulfillment_status": "fulfilled",
-                    "gift_card": false,
-                    "grams": 5000,
-                    "name": "Guitar1 - Black",
-                    "price": "500.00",
-                    "price_set": {
-                        "shop_money": {
-                            "amount": "500.00",
-                            "currency_code": "PLN"
-                        },
-                        "presentment_money": {
-                            "amount": "500.00",
-                            "currency_code": "PLN"
-                        }
-                    },
-                    "product_exists": true,
-                    "product_id": 8991067530000,
-                    "properties": [],
-                    "quantity": 3,
-                    "requires_shipping": true,
-                    "sku": "guit1-sku-bl",
-                    "taxable": true,
-                    "title": "Guitar1",
-                    "total_discount": "0.00",
-                    "total_discount_set": {
-                        "shop_money": {
-                            "amount": "0.00",
-                            "currency_code": "PLN"
-                        },
-                        "presentment_money": {
-                            "amount": "0.00",
-                            "currency_code": "PLN"
-                        }
-                    },
-                    "variant_id": 47738503495000,
-                    "variant_inventory_management": "shopify",
-                    "variant_title": "Black",
-                    "vendor": "vendevstore2",
-                    "tax_lines": [
-                        {
-                            "channel_liable": false,
-                            "price": "345.00",
-                            "price_set": {
-                                "shop_money": {
-                                    "amount": "345.00",
-                                    "currency_code": "PLN"
-                                },
-                                "presentment_money": {
-                                    "amount": "345.00",
-                                    "currency_code": "PLN"
-                                }
-                            },
-                            "rate": 0.23,
-                            "title": "PL VATt"
-                        }
-                    ],
-                    "duties": [],
-                    "discount_allocations": []
+                "shopMoney": {
+                    "amount": "2147.58",
+                    "currencyCode": "PLN"
                 }
-            ],
-            "payment_terms": null,
-            "refunds": [],
-            "shipping_address": {
-                "first_name": "Przeciętny",
-                "address1": "Górna 22",
-                "phone": null,
-                "city": "Warszawa",
-                "zip": "01-123",
-                "province": null,
-                "country": "Poland",
-                "last_name": "Kowalski",
-                "address2": null,
-                "company": null,
-                "latitude": null,
-                "longitude": null,
-                "name": "Przeciętny Kowalski",
-                "country_code": "PL",
-                "province_code": null
             },
-            "shipping_lines": []
+            "billingAddress": null,
+            "shippingAddress": null,
+            "billingAddressMatchesShippingAddress": true,
+            "customer": {
+                "id": "gid://shopify/Customer/6670178025000",
+                "email": "przecietny-kowalski@mail.pl",
+                "firstName": "Przeciętny",
+                "lastName": "Kowalski",
+                "displayName": "Przeciętny Kowalski",
+                "phone": "+48123234456",
+                "locale": "pl",
+                "createdAt": "2022-11-09T18:09:56Z",
+                "updatedAt": "2025-08-27T14:39:09Z",
+                "tags": [],
+                "addresses": [
+                    {
+                        "id": "gid://shopify/MailingAddress/8941943193892?model_name=CustomerAddress",
+                        "address1": "Księdza Pawła Lexa 100",
+                        "address2": "",
+                        "city": "Ruda Śląska",
+                        "company": "Przeciętny COmpany",
+                        "country": "Poland",
+                        "countryCodeV2": "PL",
+                        "firstName": "Przeciętny",
+                        "lastName": "Kowalski",
+                        "phone": "+48123234345",
+                        "province": null,
+                        "provinceCode": null,
+                        "zip": "01-123",
+                        "formatted": [
+                            "Przeciętny COmpany",
+                            "Księdza Pawła Lexa 100",
+                            "01-123 Ruda Śląska",
+                            "Polska"
+                        ]
+                    },
+                    {
+                        "id": "gid://shopify/MailingAddress/9180037251364?model_name=CustomerAddress",
+                        "address1": "Księdza Pawła Lexa 100",
+                        "address2": null,
+                        "city": "Ruda Śląska",
+                        "company": "Przeciętny COmpany",
+                        "country": "Poland",
+                        "countryCodeV2": "PL",
+                        "firstName": "Przeciętny",
+                        "lastName": "Kowalski",
+                        "phone": "+48123234346",
+                        "province": null,
+                        "provinceCode": null,
+                        "zip": "01-123",
+                        "formatted": [
+                            "Przeciętny COmpany",
+                            "Księdza Pawła Lexa 100",
+                            "01-123 Ruda Śląska",
+                            "Polska"
+                        ]
+                    },
+                    {
+                        "id": "gid://shopify/MailingAddress/9905196630308?model_name=CustomerAddress",
+                        "address1": "Górna 22",
+                        "address2": null,
+                        "city": "Warszawa",
+                        "company": null,
+                        "country": "Poland",
+                        "countryCodeV2": "PL",
+                        "firstName": "Przeciętny",
+                        "lastName": "Kowalski",
+                        "phone": null,
+                        "province": null,
+                        "provinceCode": null,
+                        "zip": "01-123",
+                        "formatted": [
+                            "Górna 22",
+                            "01-123 Warszawa",
+                            "Polska"
+                        ]
+                    }
+                ],
+                "defaultAddress": {
+                    "id": "gid://shopify/MailingAddress/9180037251364?model_name=CustomerAddress"
+                }
+            },
+            "lineItems": {
+                "nodes": [
+                    {
+                        "id": "gid://shopify/LineItem/31108738842916",
+                        "name": "Guitar Pro3 - White",
+                        "quantity": 2,
+                        "isGiftCard": false,
+                        "currentQuantity": 2,
+                        "taxable": true,
+                        "originalUnitPriceSet": {
+                            "presentmentMoney": {
+                                "amount": "123.0",
+                                "currencyCode": "PLN"
+                            },
+                            "shopMoney": {
+                                "amount": "123.0",
+                                "currencyCode": "PLN"
+                            }
+                        },
+                        "discountAllocations": [],
+                        "taxLines": [
+                            {
+                                "rate": 0.23,
+                                "ratePercentage": 23.0,
+                                "source": "Shopify",
+                                "title": "PL VATt",
+                                "priceSet": {
+                                    "presentmentMoney": {
+                                        "amount": "56.58",
+                                        "currencyCode": "PLN"
+                                    },
+                                    "shopMoney": {
+                                        "amount": "56.58",
+                                        "currencyCode": "PLN"
+                                    }
+                                }
+                            }
+                        ],
+                        "variant": {
+                            "product": {
+                                "id": "gid://shopify/Product/9154587918000"
+                            },
+                            "id": "gid://shopify/ProductVariant/49620724449000",
+                            "sku": "gtp3-ref-2",
+                            "title": "White"
+                        }
+                    },
+                    {
+                        "id": "gid://shopify/LineItem/31108738875684",
+                        "name": "Guitar1 - Black",
+                        "quantity": 3,
+                        "isGiftCard": false,
+                        "currentQuantity": 3,
+                        "taxable": true,
+                        "originalUnitPriceSet": {
+                            "presentmentMoney": {
+                                "amount": "500.0",
+                                "currencyCode": "PLN"
+                            },
+                            "shopMoney": {
+                                "amount": "500.0",
+                                "currencyCode": "PLN"
+                            }
+                        },
+                        "discountAllocations": [],
+                        "taxLines": [
+                            {
+                                "rate": 0.23,
+                                "ratePercentage": 23.0,
+                                "source": "Shopify",
+                                "title": "PL VATt",
+                                "priceSet": {
+                                    "presentmentMoney": {
+                                        "amount": "345.0",
+                                        "currencyCode": "PLN"
+                                    },
+                                    "shopMoney": {
+                                        "amount": "345.0",
+                                        "currencyCode": "PLN"
+                                    }
+                                }
+                            }
+                        ],
+                        "variant": {
+                            "product": {
+                                "id": "gid://shopify/Product/8991067530000"
+                            },
+                            "id": "gid://shopify/ProductVariant/47738503495000",
+                            "sku": "guit1-sku-bl",
+                            "title": "Black"
+                        }
+                    }
+                ]
+            }
         },
         "100510": {
-            "id": 100510,
-            "admin_graphql_api_id": "gid://shopify/Order/100510",
-            "app_id": 1354745,
-            "browser_ip": "37.157.207.175",
-            "buyer_accepts_marketing": false,
-            "cancel_reason": null,
-            "cancelled_at": null,
-            "cart_token": null,
-            "checkout_id": 38979676438820,
-            "checkout_token": "b170631e94af56c9c6bc7293662c1ba4",
-            "client_details": {
-                "accept_language": null,
-                "browser_height": null,
-                "browser_ip": "37.157.207.175",
-                "browser_width": null,
-                "session_hash": null,
-                "user_agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:131.0) Gecko/20100101 Firefox/131.0"
-            },
-            "closed_at": null,
-            "company": null,
-            "confirmation_number": "TYT0D85KM",
-            "confirmed": true,
-            "contact_email": "j.hatf.shopify.test@myshopify.test.com",
-            "created_at": "2024-10-24T11:24:24+02:00",
-            "currency": "PLN",
-            "current_subtotal_price": "1723.00",
-            "current_subtotal_price_set": {
-                "shop_money": {
-                    "amount": "1723.00",
-                    "currency_code": "PLN"
-                },
-                "presentment_money": {
-                    "amount": "1723.00",
-                    "currency_code": "PLN"
-                }
-            },
-            "current_total_additional_fees_set": null,
-            "current_total_discounts": "0.00",
-            "current_total_discounts_set": {
-                "shop_money": {
-                    "amount": "0.00",
-                    "currency_code": "PLN"
-                },
-                "presentment_money": {
-                    "amount": "0.00",
-                    "currency_code": "PLN"
-                }
-            },
-            "current_total_duties_set": null,
-            "current_total_price": "2119.29",
-            "current_total_price_set": {
-                "shop_money": {
-                    "amount": "2119.29",
-                    "currency_code": "PLN"
-                },
-                "presentment_money": {
-                    "amount": "2119.29",
-                    "currency_code": "PLN"
-                }
-            },
-            "current_total_tax": "396.29",
-            "current_total_tax_set": {
-                "shop_money": {
-                    "amount": "396.29",
-                    "currency_code": "PLN"
-                },
-                "presentment_money": {
-                    "amount": "396.29",
-                    "currency_code": "PLN"
-                }
-            },
-            "customer_locale": "en",
-            "device_id": null,
-            "discount_codes": [],
+            "id": "gid://shopify/Order/100510",
+            "name": "#1169",
+            "sourceName": "shopify_draft_order",
             "email": "j.hatf.shopify.test@myshopify.test.com",
-            "estimated_taxes": false,
-            "financial_status": "paid",
-            "fulfillment_status": null,
-            "landing_site": null,
-            "landing_site_ref": null,
-            "location_id": null,
-            "merchant_of_record_app_id": null,
-            "name": "#116901",
+            "phone": null,
+            "confirmed": true,
+            "cancelReason": null,
+            "cancelledAt": null,
+            "closedAt": null,
+            "createdAt": "2024-10-24T09:24:24Z",
+            "updatedAt": "2024-11-25T14:00:50Z",
+            "processedAt": "2024-10-24T09:24:24Z",
+            "displayFulfillmentStatus": "UNFULFILLED",
+            "displayFinancialStatus": "PAID",
+            "returnStatus": "NO_RETURN",
+            "customerLocale": "en",
+            "taxesIncluded": false,
+            "taxExempt": false,
+            "totalWeight": "3000",
+            "confirmationNumber": "TYT0D85KM",
+            "discountCode": null,
+            "discountCodes": [],
+            "currencyCode": "PLN",
+            "presentmentCurrencyCode": "PLN",
+            "requiresShipping": true,
             "note": null,
-            "note_attributes": [],
-            "number": 169,
-            "order_number": 116901,
-            "order_status_url": "https://vendevstore2.myshopify.com/67679813924/orders",
-            "original_total_additional_fees_set": null,
-            "original_total_duties_set": null,
-            "payment_gateway_names": [
+            "fullyPaid": true,
+            "fulfillable": true,
+            "paymentGatewayNames": [
                 "manual"
             ],
-            "phone": null,
-            "po_number": null,
-            "presentment_currency": "PLN",
-            "processed_at": "2024-10-24T11:24:24+02:00",
-            "reference": "f4913b00a31a71adbb80e606bcceca33",
-            "referring_site": null,
-            "source_identifier": "f4913b00a31a71adbb80e606bcceca33",
-            "source_name": "shopify_draft_order",
-            "source_url": null,
-            "subtotal_price": "1723.00",
-            "subtotal_price_set": {
-                "shop_money": {
-                    "amount": "1723.00",
-                    "currency_code": "PLN"
-                },
-                "presentment_money": {
-                    "amount": "1723.00",
-                    "currency_code": "PLN"
-                }
+            "tags": [],
+            "shippingLines": {
+                "nodes": []
             },
-            "tags": "",
-            "tax_exempt": false,
-            "tax_lines": [
+            "taxLines": [
                 {
-                    "price": "396.29",
                     "rate": 0.23,
-                    "title": "PL VATt",
-                    "price_set": {
-                        "shop_money": {
-                            "amount": "396.29",
-                            "currency_code": "PLN"
-                        },
-                        "presentment_money": {
-                            "amount": "396.29",
-                            "currency_code": "PLN"
-                        }
-                    },
-                    "channel_liable": false
+                    "ratePercentage": 23.0,
+                    "source": "Shopify",
+                    "title": "PL VATt"
                 }
             ],
-            "taxes_included": false,
-            "test": false,
-            "token": "afe3063c864bb67b69b8895b1d88024f",
-            "total_discounts": "0.00",
-            "total_discounts_set": {
-                "shop_money": {
-                    "amount": "0.00",
-                    "currency_code": "PLN"
-                },
-                "presentment_money": {
-                    "amount": "0.00",
-                    "currency_code": "PLN"
-                }
-            },
-            "total_line_items_price": "1723.00",
-            "total_line_items_price_set": {
-                "shop_money": {
-                    "amount": "1723.00",
-                    "currency_code": "PLN"
-                },
-                "presentment_money": {
-                    "amount": "1723.00",
-                    "currency_code": "PLN"
-                }
-            },
-            "total_outstanding": "0.00",
-            "total_price": "2119.29",
-            "total_price_set": {
-                "shop_money": {
-                    "amount": "2119.29",
-                    "currency_code": "PLN"
-                },
-                "presentment_money": {
-                    "amount": "2119.29",
-                    "currency_code": "PLN"
-                }
-            },
-            "total_shipping_price_set": {
-                "shop_money": {
-                    "amount": "0.00",
-                    "currency_code": "PLN"
-                },
-                "presentment_money": {
-                    "amount": "0.00",
-                    "currency_code": "PLN"
-                }
-            },
-            "total_tax": "396.29",
-            "total_tax_set": {
-                "shop_money": {
-                    "amount": "396.29",
-                    "currency_code": "PLN"
-                },
-                "presentment_money": {
-                    "amount": "396.29",
-                    "currency_code": "PLN"
-                }
-            },
-            "total_tip_received": "0.00",
-            "total_weight": 3000,
-            "updated_at": "2024-10-24T11:24:26+02:00",
-            "user_id": 87526211876,
-            "billing_address": {
-                "first_name": "James",
-                "address1": "Trojanowska 71",
-                "phone": "+48534612001",
-                "city": "Sochaczew",
-                "zip": "96-500",
-                "province": null,
-                "country": "Poland",
-                "last_name": "Hatf",
-                "address2": null,
-                "company": "J. Hat T-Co",
-                "latitude": null,
-                "longitude": null,
-                "name": "James Hatf",
-                "country_code": "PL",
-                "province_code": null
-            },
-            "customer": {
-                "id": 22299318910000,
-                "email": "j.hatf.shopify.test@myshopify.test.com",
-                "created_at": "2024-10-24T11:23:57+02:00",
-                "updated_at": "2024-10-24T11:24:25+02:00",
-                "first_name": "James",
-                "last_name": "Hatf",
-                "state": "disabled",
-                "note": null,
-                "verified_email": true,
-                "multipass_identifier": null,
-                "tax_exempt": false,
-                "phone": null,
-                "email_marketing_consent": {
-                    "state": "not_subscribed",
-                    "opt_in_level": "single_opt_in",
-                    "consent_updated_at": null
-                },
-                "sms_marketing_consent": null,
-                "tags": "",
-                "currency": "PLN",
-                "tax_exemptions": [],
-                "admin_graphql_api_id": "gid://shopify/Customer/22299318910000",
-                "default_address": {
-                    "id": 32514576089380,
-                    "customer_id": 22299318910000,
-                    "first_name": "James",
-                    "last_name": "Hatf",
-                    "company": "J. Hat T-Co ",
-                    "address1": "Trojanowska 71",
-                    "address2": "",
-                    "city": "Sochaczew",
-                    "province": null,
-                    "country": "Poland",
-                    "zip": "96-500",
-                    "phone": "+48534612001",
-                    "name": "James Hatf",
-                    "province_code": null,
-                    "country_code": "PL",
-                    "country_name": "Poland",
-                    "default": true
-                }
-            },
-            "discount_applications": [],
-            "fulfillments": [],
-            "line_items": [
-                {
-                    "id": 31153178968356,
-                    "admin_graphql_api_id": "gid://shopify/LineItem/31153178968356",
-                    "current_quantity": 1,
-                    "fulfillable_quantity": 1,
-                    "fulfillment_service": "manual",
-                    "fulfillment_status": null,
-                    "gift_card": false,
-                    "grams": 3000,
-                    "name": "Guitar classic SP-test",
-                    "price": "1723.00",
-                    "price_set": {
-                        "shop_money": {
-                            "amount": "1723.00",
-                            "currency_code": "PLN"
-                        },
-                        "presentment_money": {
-                            "amount": "1723.00",
-                            "currency_code": "PLN"
-                        }
-                    },
-                    "product_exists": true,
-                    "product_id": 9912501730000,
-                    "properties": [],
-                    "quantity": 1,
-                    "requires_shipping": true,
-                    "sku": "guitar-cl-shopify-test-1",
-                    "taxable": true,
-                    "title": "Guitar classic SP-test",
-                    "total_discount": "0.00",
-                    "total_discount_set": {
-                        "shop_money": {
-                            "amount": "0.00",
-                            "currency_code": "PLN"
-                        },
-                        "presentment_money": {
-                            "amount": "0.00",
-                            "currency_code": "PLN"
-                        }
-                    },
-                    "variant_id": 50025308420000,
-                    "variant_inventory_management": "shopify",
-                    "variant_title": null,
-                    "vendor": "vendevstore2",
-                    "tax_lines": [
-                        {
-                            "channel_liable": false,
-                            "price": "396.29",
-                            "price_set": {
-                                "shop_money": {
-                                    "amount": "396.29",
-                                    "currency_code": "PLN"
-                                },
-                                "presentment_money": {
-                                    "amount": "396.29",
-                                    "currency_code": "PLN"
-                                }
+            "shippingLine": null,
+            "publication": null,
+            "risk": {
+                "assessments": [
+                    {
+                        "facts": [
+                            {
+                                "description": "Numer CVV (CVV) jest niedostępny",
+                                "sentiment": "NEUTRAL"
                             },
-                            "rate": 0.23,
-                            "title": "PL VATt"
+                            {
+                                "description": "Adres rozliczeniowy lub adres karty kredytowej nie był dostępny",
+                                "sentiment": "NEUTRAL"
+                            },
+                            {
+                                "description": "Wykorzystano metodę płatności inną niż karta kredytowa",
+                                "sentiment": "NEUTRAL"
+                            },
+                            {
+                                "description": "Lokalizacja adresu IP użytego do złożenia zamówienia to Warsaw ..",
+                                "sentiment": "NEUTRAL"
+                            },
+                            {
+                                "description": "Wykonano 1 próbę płatności",
+                                "sentiment": "POSITIVE"
+                            },
+                            {
+                                "description": "Adres wysyłki znajduje się w odległości 51 km od lokalizacji adresu IP",
+                                "sentiment": "POSITIVE"
+                            },
+                            {
+                                "description": "Kraj rozliczenia pasuje do kraju, z którego zamówienie zostało złożone",
+                                "sentiment": "POSITIVE"
+                            }
+                        ],
+                        "riskLevel": "NONE"
+                    }
+                ],
+                "recommendation": "NONE"
+            },
+            "transactions": [
+                {
+                    "id": "gid://shopify/OrderTransaction/10706450678052",
+                    "order": {
+                        "id": "gid://shopify/Order/100510"
+                    },
+                    "paymentId": "r7GTHvjt4s4sV2KSJqbeaezh7",
+                    "kind": "SALE",
+                    "status": "SUCCESS",
+                    "gateway": "manual_in_shopify_test",
+                    "formattedGateway": "Manual",
+                    "amountSet": {
+                        "presentmentMoney": {
+                            "amount": "2119.29",
+                            "currencyCode": "PLN"
+                        },
+                        "shopMoney": {
+                            "amount": "2119.29",
+                            "currencyCode": "PLN"
                         }
-                    ],
-                    "duties": [],
-                    "discount_allocations": []
+                    },
+                    "parentTransaction": null,
+                    "processedAt": "2024-10-24T09:24:24Z"
                 }
             ],
-            "payment_terms": null,
-            "refunds": [],
-            "shipping_address": {
-                "first_name": "James",
+            "fulfillmentOrders": {
+                "nodes": [
+                    {
+                        "id": "gid://shopify/FulfillmentOrder/10597238340000",
+                        "orderId": "gid://shopify/Order/100510",
+                        "status": "OPEN",
+                        "lineItems": {
+                            "nodes": [
+                                {
+                                    "id": "gid://shopify/FulfillmentOrderLineItem/31181893697828",
+                                    "totalQuantity": 1,
+                                    "remainingQuantity": 1,
+                                    "sku": "guitar-cl-sp-test-1",
+                                    "lineItem": {
+                                        "id": "gid://shopify/LineItem/31153178968356"
+                                    }
+                                }
+                            ]
+                        },
+                        "assignedLocation": {
+                            "location": {
+                                "id": "gid://shopify/Location/73153839000"
+                            }
+                        },
+                        "deliveryMethod": {
+                            "id": "gid://shopify/DeliveryMethod/4952923930916",
+                            "presentedName": "Shipping",
+                            "methodType": "SHIPPING",
+                            "serviceCode": "custom",
+                            "sourceReference": null
+                        }
+                    }
+                ]
+            },
+            "fulfillments": [],
+            "currentTotalPriceSet": {
+                "presentmentMoney": {
+                    "amount": "2119.29",
+                    "currencyCode": "PLN"
+                },
+                "shopMoney": {
+                    "amount": "2119.29",
+                    "currencyCode": "PLN"
+                }
+            },
+            "billingAddress": {
+                "id": "gid://shopify/MailingAddress/22632603812132?model_name=Address",
                 "address1": "Trojanowska 71",
-                "phone": "+48534612001",
+                "address2": null,
                 "city": "Sochaczew",
+                "company": "J. Hat Co",
+                "country": "Poland",
+                "countryCodeV2": "PL",
+                "firstName": "James",
+                "lastName": "Hatf",
+                "phone": "+48534612001",
+                "province": null,
+                "provinceCode": null,
                 "zip": "96-500",
-                "province": null,
-                "country": "Poland",
-                "last_name": "Hatf",
-                "address2": null,
-                "company": "J. Hat T-Co",
-                "latitude": 52.2403059,
-                "longitude": 20.2572798,
-                "name": "James Hatf",
-                "country_code": "PL",
-                "province_code": null
+                "formatted": [
+                    "J. Hat Co",
+                    "Trojanowska 71",
+                    "96-500 Sochaczew",
+                    "Polska"
+                ]
             },
-            "shipping_lines": []
-        }
-    },
-    "fulfillment_order": {
-        "100500": {
-            "id": 10575833104676,
-            "created_at": "2024-10-08T14:03:32+02:00",
-            "updated_at": "2024-10-08T14:07:59+02:00",
-            "shop_id": 67679813924,
-            "order_id": 100500,
-            "assigned_location_id": 73153839000,
-            "request_status": "unsubmitted",
-            "status": "closed",
-            "fulfill_at": "2024-10-08T14:00:00+02:00",
-            "supported_actions": [],
-            "destination": {
-                "id": 10249542795556,
-                "address1": "G\\u00f3rna 22",
-                "address2": null,
-                "city": "Warszawa",
-                "company": null,
-                "country": "Poland",
-                "email": "przecietny-kowalski@mail.pl",
-                "first_name": "Przeciętny",
-                "last_name": "Kowalski",
-                "phone": null,
-                "province": null,
-                "zip": "01-123"
-            },
-            "line_items": [
-                {
-                    "id": 31136387170596,
-                    "shop_id": 67679813924,
-                    "fulfillment_order_id": 10575833104676,
-                    "quantity": 2,
-                    "line_item_id": 31108738842916,
-                    "inventory_item_id": 51609149604132,
-                    "fulfillable_quantity": 0,
-                    "variant_id": 49620724449000
-                },
-                {
-                    "id": 31136387203364,
-                    "shop_id": 67679813924,
-                    "fulfillment_order_id": 10575833104676,
-                    "quantity": 3,
-                    "line_item_id": 31108738875684,
-                    "inventory_item_id": 49726875664676,
-                    "fulfillable_quantity": 0,
-                    "variant_id": 47738503495000
-                }
-            ],
-            "international_duties": null,
-            "fulfillment_holds": [],
-            "fulfill_by": null,
-            "delivery_method": {
-                "id": 4932258562340,
-                "method_type": "shipping",
-                "min_delivery_date_time": null,
-                "max_delivery_date_time": null
-            },
-            "assigned_location": {
-                "address1": "Miczkewicza 10",
-                "address2": "",
-                "city": "Warszawa",
-                "country_code": "PL",
-                "location_id": 73153839000,
-                "name": "Miczkewicza 10",
-                "phone": "48111111111",
-                "province": null,
-                "zip": "01-571"
-            },
-            "merchant_requests": []
-        },
-        "100510": {
-            "id": 10597238340000,
-            "created_at": "2024-10-24T11:24:25+02:00",
-            "updated_at": "2024-10-24T11:24:25+02:00",
-            "shop_id": 67679813924,
-            "order_id": 100510,
-            "assigned_location_id": 73153839000,
-            "request_status": "unsubmitted",
-            "status": "open",
-            "fulfill_at": "2024-10-24T11:00:00+02:00",
-            "supported_actions": [
-                "create_fulfillment",
-                "move",
-                "hold"
-            ],
-            "destination": {
-                "id": 10269629251876,
-                "address1": "Trojanowska 71",
+            "shippingAddress": {
+                "id": "gid://shopify/MailingAddress/22632603779364?model_name=Address",
+                "address1": "Trojanowska 72",
                 "address2": null,
                 "city": "Sochaczew",
-                "company": "J. Hat T-Co",
+                "company": "J. Hat Co",
                 "country": "Poland",
-                "email": "j.hatf.shopify.test@myshopify.test.com",
-                "first_name": "James",
-                "last_name": "Hatf",
+                "countryCodeV2": "PL",
+                "firstName": "James",
+                "lastName": "Hatf",
                 "phone": "+48534612001",
                 "province": null,
-                "zip": "96-500"
+                "provinceCode": null,
+                "zip": "96-500",
+                "formatted": [
+                    "J. Hat Co",
+                    "Trojanowska 72",
+                    "96-500 Sochaczew",
+                    "Polska"
+                ]
             },
-            "line_items": [
-                {
-                    "id": 31181893697828,
-                    "shop_id": 67679813924,
-                    "fulfillment_order_id": 10597238340000,
-                    "quantity": 1,
-                    "line_item_id": 31153178968356,
-                    "inventory_item_id": 52014957101348,
-                    "fulfillable_quantity": 1,
-                    "variant_id": 50025308420000
-                }
-            ],
-            "international_duties": null,
-            "fulfillment_holds": [],
-            "fulfill_by": null,
-            "delivery_method": {
-                "id": 4952923930916,
-                "method_type": "shipping",
-                "min_delivery_date_time": null,
-                "max_delivery_date_time": null,
-                "additional_information": {
-                    "instructions": null,
-                    "phone": null
-                },
-                "service_code": "custom",
-                "source_reference": null,
-                "branded_promise": null
-            },
-            "assigned_location": {
-                "address1": "Miczkewicza 10",
-                "address2": "",
-                "city": "Warszawa",
-                "country_code": "PL",
-                "location_id": 73153839000,
-                "name": "Miczkewicza 10",
-                "phone": "48111111111",
-                "province": null,
-                "zip": "01-571"
-            },
-            "merchant_requests": []
-        }
-    },
-    "transaction": {
-        "100500": {
-            "id": 10679267000000,
-            "order_id": 100500,
-            "kind": "sale",
-            "gateway": "manual_in_shopify_test",
-            "status": "success",
-            "message": "Marked the manual payment as received",
-            "created_at": "2024-10-08T14:03:31+02:00",
-            "test": false,
-            "authorization": null,
-            "location_id": null,
-            "user_id": null,
-            "parent_id": null,
-            "processed_at": "2024-10-08T14:03:31+02:00",
-            "device_id": null,
-            "error_code": null,
-            "source_name": "checkout_one",
-            "receipt": {},
-            "amount": "147.58",
-            "currency": "PLN",
-            "payment_id": "rC16cqp2Dhpjj5XRS3NR7m11q",
-            "total_unsettled_set": {
-                "presentment_money": {
-                    "amount": "0.0",
-                    "currency": "PLN"
-                },
-                "shop_money": {
-                    "amount": "0.0",
-                    "currency": "PLN"
+            "billingAddressMatchesShippingAddress": false,
+            "customer": {
+                "id": "gid://shopify/Customer/22299318910000",
+                "email": "j.hatf.shopify.test@myshopify.test.com",
+                "firstName": "James",
+                "lastName": "Hatf",
+                "displayName": "James Hatf",
+                "phone": "+48534612001",
+                "locale": "pl",
+                "createdAt": "2024-10-24T09:23:57Z",
+                "updatedAt": "2025-06-05T08:19:26Z",
+                "tags": [],
+                "addresses": [
+                    {
+                        "id": "gid://shopify/MailingAddress/32514576089380?model_name=CustomerAddress",
+                        "address1": "Trojanowska 71",
+                        "address2": "",
+                        "city": "Sochaczew",
+                        "company": "J. Hat Co ",
+                        "country": "Poland",
+                        "countryCodeV2": "PL",
+                        "firstName": "James",
+                        "lastName": "Hatf",
+                        "phone": "+48534612001",
+                        "province": null,
+                        "provinceCode": null,
+                        "zip": "96-500",
+                        "formatted": [
+                            "J. Hat Co ",
+                            "Trojanowska 71",
+                            "96-500 Sochaczew",
+                            "Polska"
+                        ]
+                    },
+                                        {
+                        "id": "gid://shopify/MailingAddress/32514576089381?model_name=CustomerAddress",
+                        "address1": "Trojanowska 72",
+                        "address2": "",
+                        "city": "Sochaczew",
+                        "company": "J. Hat Co ",
+                        "country": "Poland",
+                        "countryCodeV2": "PL",
+                        "firstName": "James",
+                        "lastName": "Hatf",
+                        "phone": "+48534612001",
+                        "province": null,
+                        "provinceCode": null,
+                        "zip": "96-500",
+                        "formatted": [
+                            "J. Hat Co ",
+                            "Trojanowska 72",
+                            "96-500 Sochaczew",
+                            "Polska"
+                        ]
+                    }
+                ],
+                "defaultAddress": {
+                    "id": "gid://shopify/MailingAddress/32514576089380?model_name=CustomerAddress"
                 }
             },
-            "admin_graphql_api_id": "gid://shopify/OrderTransaction/10679267000000"
-        },
-        "100510": {
-            "id": 10706450678052,
-            "order_id": 100510,
-            "kind": "sale",
-            "gateway": "manual_in_shopify_test",
-            "status": "success",
-            "message": "Marked the manual payment as received",
-            "created_at": "2024-10-24T11:24:24+02:00",
-            "test": false,
-            "authorization": null,
-            "location_id": null,
-            "user_id": null,
-            "parent_id": null,
-            "processed_at": "2024-10-24T11:24:24+02:00",
-            "device_id": null,
-            "error_code": null,
-            "source_name": "checkout_one",
-            "receipt": {},
-            "amount": "2119.29",
-            "currency": "PLN",
-            "payment_id": "r7GTHvjt4s4sV2KSJqbeaezh7",
-            "total_unsettled_set": {
-                "presentment_money": {
-                    "amount": "0.0",
-                    "currency": "PLN"
-                },
-                "shop_money": {
-                    "amount": "0.0",
-                    "currency": "PLN"
-                }
-            },
-            "manual_payment_gateway": true,
-            "admin_graphql_api_id": "gid://shopify/OrderTransaction/10706450678052"
+            "lineItems": {
+                "nodes": [
+                    {
+                        "id": "gid://shopify/LineItem/31153178968356",
+                        "name": "Guitar classic SP-t",
+                        "quantity": 1,
+                        "isGiftCard": false,
+                        "currentQuantity": 1,
+                        "taxable": true,
+                        "originalUnitPriceSet": {
+                            "presentmentMoney": {
+                                "amount": "1723.0",
+                                "currencyCode": "PLN"
+                            },
+                            "shopMoney": {
+                                "amount": "1723.0",
+                                "currencyCode": "PLN"
+                            }
+                        },
+                        "discountAllocations": [],
+                        "taxLines": [
+                            {
+                                "rate": 0.23,
+                                "ratePercentage": 23.0,
+                                "source": "Shopify",
+                                "title": "PL VATt",
+                                "priceSet": {
+                                    "presentmentMoney": {
+                                        "amount": "396.29",
+                                        "currencyCode": "PLN"
+                                    },
+                                    "shopMoney": {
+                                        "amount": "396.29",
+                                        "currencyCode": "PLN"
+                                    }
+                                }
+                            }
+                        ],
+                        "variant": {
+                            "product": {
+                                "id": "gid://shopify/Product/9912501730000"
+                            },
+                            "id": "gid://shopify/ProductVariant/50025308420000",
+                            "sku": "guitar-cl-sp-test-1",
+                            "title": "Default Title"
+                        }
+                    }
+                ]
+            }
         }
     }
 }
 """
+
+
+STORAGE = json.loads(STORAGE_STR)

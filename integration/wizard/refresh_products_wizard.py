@@ -16,14 +16,14 @@ class RefreshProductsWizard(models.TransientModel):
     )
     allowed_integration_ids = fields.Many2many(
         comodel_name='sale.integration',
-        string='Allowed Integrations',
+        string='Allowed E-Commerce Stores',
     )
     allowed_integration_count = fields.Integer(
-        string='Allowed Integrations Count',
+        string='Allowed E-Commerce Stores Count',
     )
     integration_id = fields.Many2one(
+        string='Refresh from E-Commerce Store',
         comodel_name='sale.integration',
-        string='Refresh from Integration',
         domain="[('id', 'in', allowed_integration_ids)]",
         required=True,
     )
@@ -37,8 +37,8 @@ class RefreshProductsWizard(models.TransientModel):
     def default_get(self, fields_list):
         values = super(RefreshProductsWizard, self).default_get(fields_list)
 
-        template_ids = self._context.get('template_ids')
-        allowed_integration_ids = self._context.get('allowed_integration_ids', [])
+        template_ids = self.env.context.get('template_ids')
+        allowed_integration_ids = self.env.context.get('allowed_integration_ids', [])
         integration_count = len(allowed_integration_ids)
 
         values['template_ids'] = [(6, 0, template_ids)]

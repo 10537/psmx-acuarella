@@ -82,19 +82,19 @@
             <div t-attf-class="row mb-4 g-3 #{props.blurGlobal ? 'blurred' : ''}">
                 <!-- TODO: Instead array it would be nice to use object (cards.total_sales) -->
                 <t t-if="cards[0]">
-                    <TotalSalesRevenueCard data="cards[0] || {}" />
+                    <TotalSalesRevenueCard data="cards[0] || {}"/>
                 </t>
 
                 <t t-if="cards[1]">
-                    <NumberOfOrdersCard data="cards[1] || {}" />
+                    <NumberOfOrdersCard data="cards[1] || {}"/>
                 </t>
 
                 <t t-if="cards[2]">
-                    <AverageOrderValueCard data="cards[2] || {}" />
+                    <AverageOrderValueCard data="cards[2] || {}"/>
                 </t>
 
                 <t t-if="cards[3]">
-                    <RepeatPurchaseRateCard data="cards[3] || {}" />
+                    <RepeatPurchaseRateCard data="cards[3] || {}"/>
                 </t>
             </div>
         </t>

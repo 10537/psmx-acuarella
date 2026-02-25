@@ -11,18 +11,18 @@ class IntegrationProductImageMapping(models.Model):
     _description = 'Integration Product Image Mapping'
 
     external_image_id = fields.Many2one(
-        comodel_name='integration.product.image.external',
         string='External Image',
+        comodel_name='integration.product.image.external',
         ondelete='cascade',
         required=True,
     )
 
     ttype = fields.Selection(
+        string='Image Type',
         selection=[
             ('product.product', 'Variant'),
             ('product.template', 'Template'),
         ],
-        string='Type',
         default='product.template',
         required=True,
     )
@@ -49,23 +49,23 @@ class IntegrationProductImageMapping(models.Model):
     )
 
     image_id = fields.Many2one(
+        string='Odoo Image',
         comodel_name='product.image',
-        string='Image',
     )
 
     image_db_id = fields.Integer(
-        related='image_id.id',
         string='Image ID',
+        related='image_id.id',
     )
 
     action_type = fields.Selection(
+        string='Action Type',
         selection=[
             ('none', 'none'),
             ('pending', 'pending'),
             ('assign', 'assign'),
             ('create', 'create'),
         ],
-        string='Action Type',
         default='none',
         required=True,
     )

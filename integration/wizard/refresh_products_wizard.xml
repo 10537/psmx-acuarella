@@ -21,6 +21,7 @@
 
         <record id="refresh_products_wizard_action" model="ir.actions.act_window">
             <field name="name">Refresh from Store</field>
+            <field name="path">eci-refresh-products-wizard</field>
             <field name="type">ir.actions.act_window</field>
             <field name="res_model">refresh.products.wizard</field>
             <field name="view_mode">form</field>

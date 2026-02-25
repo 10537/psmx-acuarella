@@ -63,7 +63,7 @@ class QueueJob(models.Model):
     )
     integration_id = fields.Many2one(
         comodel_name='sale.integration',
-        string='Sale Integration',
+        string='E-Commerce Store',
     )
     integration_external_id = fields.Text(
         string='External ID',
@@ -242,6 +242,11 @@ class QueueJob(models.Model):
 
             job.integration_external_name = external_name
             job.integration_odoo_name = odoo_name
+
+    def _subscribe_users_domain(self):
+        domain = super()._subscribe_users_domain()
+        domain.append(('notify_failed_jobs', '=', True))
+        return domain
 
     def action_open_mapping_view(self):
         model = self.get_model_from_integration_model_name()

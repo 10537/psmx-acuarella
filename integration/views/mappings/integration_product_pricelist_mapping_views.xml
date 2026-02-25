@@ -25,10 +25,12 @@
                     <field name="integration_id" column_invisible="1"/> <!-- Required because it is used in the fields domains in the model -->
                     <field name="external_pricelist_id" domain="[('integration_id', '=', integration_id)]"/>
                     <field name="pricelist_id"/>
-                    <button type="object"
-                            name="import_special_prices_mapping"
+                    <button name="import_special_prices_mapping"
+                            type="object"
                             string="Synchronize"
-                            invisible="not pricelist_id"/>
+                            invisible="not pricelist_id"
+                            icon="fa-refresh"
+                            class="btn-outline-primary"/>
                 </list>
             </field>
         </record>
@@ -41,9 +43,9 @@
                     <field name="pricelist_id"/>
                     <field name="external_pricelist_id"/>
                     <field name="integration_id"/>
-                    <filter string="Not Mapped" name="not_mapped" domain="[('pricelist_id', '=', False)]" />
+                    <filter string="Not Mapped" name="not_mapped" domain="[('pricelist_id', '=', False)]"/>
                     <group expand="0" string="Group By">
-                        <filter string="Sale Integration" name="group_by_integration_id" context="{'group_by': 'integration_id'}"/>
+                        <filter string="E-Commerce Store" name="group_by_integration_id" context="{'group_by': 'integration_id'}"/>
                     </group>
                 </search>
             </field>
@@ -51,6 +53,7 @@
 
         <record id="integration_product_pricelist_mapping_action" model="ir.actions.act_window">
             <field name="name">Pricelist Mappings</field>
+            <field name="path">eci-pricelist-mappings</field>
             <field name="res_model">integration.product.pricelist.mapping</field>
             <field name="view_mode">list</field>
             <field name="view_id" ref="integration_product_pricelist_mapping_view_tree"/>

@@ -12,12 +12,10 @@
                         <field name="state" invisible="1"/> <!-- Required because it is used in the invisible condition below -->
 
                         <div name="main" invisible="state != 'step_main'">
-                            <div class="row">
-                                <p>
-                                    This quick check will confirm VentorTech connector is ready to function as intended.
-                                    Click 'Validate Configuration' button below to verify your settings.
-                                </p>
-                            </div>
+                            <p class="mb-0">
+                                This quick check will confirm VentorTech connector is ready to function as intended.
+                                Click 'Validate Configuration' button below to verify your settings.
+                            </p>
                         </div>
 
                         <div name="success" invisible="state != 'step_success'">
@@ -102,8 +100,8 @@
                         <div name="errors" invisible="state != 'step_error'">
                             <div class="alert alert-info mb-4 p-3" role="alert">
                                 <h3 class="mb-2">
-                                    <i class="fa fa-info-circle me-2"/>
-				    Don't want to spend time configuring?
+                                    <i class="fa fa-info-circle me-2" title="Information"/>
+                                    Don't want to spend time configuring?
                                 </h3>
                                 <p class="mb-2">
                                     Let our experts handle the setup for you. Purchase our one-time configuration service and
@@ -169,11 +167,6 @@
                                             string="Re-check Configuration"
                                             class="btn-primary"
                                             invisible="state != 'step_error'"
-                                    />
-                                    <button name="close_wizard"
-                                            type="object"
-                                            string="Close"
-                                            class="btn-primary"
                                     />
                                 </div>
 

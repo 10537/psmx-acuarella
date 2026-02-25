@@ -34,8 +34,8 @@ class JobLog(models.Model):
         ondelete='cascade',
     )
     integration_id = fields.Many2one(
+        string='E-Commerce Store',
         comodel_name='sale.integration',
-        string='Integration',
     )
     state = fields.Selection(
         related='job_id.state',

@@ -5,7 +5,7 @@
         <menuitem id="menu_mappings"
                   name="Mappings"
                   parent="menu_sale_integration"
-                  sequence="40"/>
+                  sequence="50"/>
 
         <menuitem id="menu_attributes_mapping"
                   name="Attributes"

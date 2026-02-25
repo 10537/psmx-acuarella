@@ -81,7 +81,7 @@ class IntegrationResPartnerFactory(models.TransientModel):
 
         # Helper function to create proxy
         def create_proxy_from_data(proxy_type: str, data: Dict) -> None:
-            Proxy.create_proxy(proxy_type, factory.id, data)
+            Proxy.create_proxy(proxy_type, integration_id, factory.id, data)
 
         # If the data is empty, we consider that there is no data
         if billing_data and all(not v for v in billing_data.values()):
@@ -148,7 +148,7 @@ class IntegrationResPartnerFactory(models.TransientModel):
             # Update customer data with billing data if email and person_name matches (assume that the person who is
             # placing the order is the same as the person who is being billed)
             if (
-                str(customer_data.get('email', '')).lower() == str(billing_data.get('email', '')).lower() and
+                str(customer_data.get('email', '')).lower() == str(billing_data.get('email', '')).lower() and  # NOQA
                 str(customer_data.get('person_name', '')).lower() == str(billing_data.get('person_name', '')).lower()
             ):
                 for field in FIELDS_TO_COPY:
@@ -248,8 +248,6 @@ class IntegrationResPartnerFactory(models.TransientModel):
         If any of them is missing and the default customer setting is not enabled, it raises an
         error.
         """
-        partner = self.customer_proxy.get_customer(False)
-
         if not self.customer_proxy and not self.integration_id.default_customer:
             raise ApiImportError(
                 _(
@@ -267,11 +265,11 @@ class IntegrationResPartnerFactory(models.TransientModel):
             )
 
         # Handle manual partner mapping enabled case.
-        if self.integration_id.use_manual_customer_mapping and not partner:
+        if self.integration_id.use_manual_customer_mapping and not self.customer_proxy.get_customer(False):
             # If customer is not found in the order - skip sending notifications and apply
             # "Default customer" to the order
             if not self.customer_proxy.external_id:
-                return False
+                return True
 
             # Notify about the failure in mapping customers
             self._notify_about_missed_customer_mapping()

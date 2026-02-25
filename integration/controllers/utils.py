@@ -1,16 +1,15 @@
 #  See LICENSE file for full copyright and licensing details.
 
+import logging
 from functools import wraps
 
-from odoo import SUPERUSER_ID
-from odoo.http import request, db_list
-from werkzeug.exceptions import BadRequest
 from psycopg2 import Error
+from werkzeug.exceptions import BadRequest
 
+from odoo import SUPERUSER_ID
 from odoo.api import Environment
+from odoo.http import request, db_list
 from odoo.modules.registry import Registry
-
-import logging
 
 
 _logger = logging.getLogger(__name__)
@@ -51,12 +50,20 @@ def validate_integration(func):
     """
     @wraps(func)
     def wrapper(self, *args, **kw):
+        """
+        :self: an instance of the IntegrationWebhook class
+        """
         integration_id = kw.get('integration_id')
         integration = request.env['sale.integration'].browse(integration_id).exists()
         integration = integration.filtered(lambda x: x.type_api == self.integration_type)
 
         if not integration:
             message = 'Webhook unrecognized integration.'
+            _logger.error(message)
+            return BadRequest(message)
+
+        if not integration.is_active:
+            message = f'{integration.name}: Integration is inactive.'
             _logger.error(message)
             return BadRequest(message)
 
@@ -73,7 +80,8 @@ def validate_integration(func):
             message,
         )
         if integration.save_webhook_log:
-            self._create_log(integration, *args, **kw)
+            vals = self._prepare_log_vals(integration, *args, **kw)
+            integration._save_log(vals)
 
         return func(self, *args, **kw)
 

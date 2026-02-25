@@ -51,7 +51,7 @@
                             </t>
                             <!-- below 1000 Kb: decent -->
                             <t t-elif="record.image_1920.raw_value.length &lt; 1000*1000">
-                                <t t-set="size_status" t-value="'text-bg-warning'" />
+                                <t t-set="size_status" t-value="'text-bg-warning'"/>
                                 <t t-set="message">Huge file size. The image should be optimized/reduced.</t>
                             </t>
                             <!-- above 1000 Kb: bad -->

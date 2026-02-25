@@ -18,7 +18,8 @@
         </record>
 
         <record id="integration_sale_order_payment_method_external_auto_workflow_action" model="ir.actions.act_window">
-            <field name="name">Payment Methods</field>
+            <field name="name">Payment Methods Configuration</field>
+            <field name="path">eci-payment-methods-configuration</field>
             <field name="res_model">integration.sale.order.payment.method.external</field>
             <field name="view_mode">list</field>
             <field name="view_id" ref="integration_sale_order_payment_method_external_auto_workflow_view_tree"/>

@@ -19,11 +19,9 @@ class ProductPublicCategoryMixin(models.AbstractModel):
         if self.parent_id:
             parent_id = self.parent_id.to_external_or_export(integration)
 
-        name = integration.convert_translated_field_to_integration_format(self, 'name')
-
         return {
-            'name': name,
             'parent_id': parent_id,
+            'name': self.convert_field_translations_to_external(integration.id, 'name'),
         }
 
     def parse_parent_recursively(self, parents=None):

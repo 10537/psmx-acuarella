@@ -38,8 +38,8 @@ class SaleIntegrationFile(models.Model):
         copy=False,
     )
     si_id = fields.Many2one(
+        string='E-Commerce Store',
         comodel_name='sale.integration',
-        string='Integration',
         required=True,
         ondelete='cascade',
         readonly=True,
@@ -59,6 +59,9 @@ class SaleIntegrationFile(models.Model):
     )
     update_required = fields.Boolean(
         string='Update Required',
+    )
+    type_api = fields.Selection(
+        related='si_id.type_api',
     )
 
     def action_done(self):
@@ -209,20 +212,14 @@ class SaleIntegrationInputFile(models.Model):
         else:
             json_str = base64.b64decode(self.file)
 
-        data = json.loads(json_str)
-        data['_odoo_id'] = self.id
-
-        return data
+        return json.loads(json_str)
 
     def print_parsed_data(self):
         self.ensure_one()
+
         data = self.parse()
 
-        wizard = self.env['message.wizard'].create({
-            'message': json.dumps(data, indent=8),
-        })
-
-        return wizard.run_wizard('integration_message_wizard_form')
+        return self.env['message.wizard'].create_json_and_run(data)
 
     def parse(self):
         self.ensure_one()
@@ -242,6 +239,10 @@ class SaleIntegrationInputFile(models.Model):
 
         return data
 
+    def process_all(self):
+        for rec in self:
+            rec.process()
+
     def process(self):
         self.ensure_one()
 
@@ -260,7 +261,7 @@ class SaleIntegrationInputFile(models.Model):
             si = self.si_id.with_context(company_id=self.si_id.company_id.id)
             job_kwargs = si._job_kwargs_create_order_from_input(self)
 
-            job = si.with_delay(**job_kwargs).create_order_from_input(self)
+            job = si.with_delay(**job_kwargs).create_order_from_input(self.id)
 
             self.job_log(job)
 
@@ -282,7 +283,7 @@ class SaleIntegrationInputFile(models.Model):
 
         self.action_create_order()
 
-        return self.si_id.create_order_from_input(self)
+        return self.si_id.create_order_from_input(self.id)
 
     def cancel_order_in_ecommerce_system(self, params: dict):
         self.ensure_one()
@@ -354,14 +355,13 @@ class SaleIntegrationInputFile(models.Model):
     def _update_from_external(self):
         self.ensure_one()
 
-        integration = self.si_id
-        adapter = integration._build_adapter()
-        input_data = adapter.receive_order(self.name)
+        input_data = self.si_id.adapter.receive_order(self.name)
 
         if not input_data:
             return False
 
         self.raw_data = json.dumps(input_data['data'], indent=4)
+
         return True
 
     def _job_kwargs_process_input_file(self):
@@ -402,7 +402,7 @@ class SaleIntegrationInputFile(models.Model):
         return True
 
     def _prepare_actual_pipeline_data(self):
-        adapter = self.si_id._build_adapter()
+        adapter = self.si_id.adapter
         input_data = adapter.receive_order(self.name)
 
         if not input_data:
@@ -431,7 +431,7 @@ class SaleIntegrationInputFile(models.Model):
     def _get_file_id_for_log(self):
         return self.id
 
-    def open_order(self):
+    def action_open_order(self):
         self.ensure_one()
         return {
             'type': 'ir.actions.act_window',
@@ -439,4 +439,12 @@ class SaleIntegrationInputFile(models.Model):
             'res_id': self.order_id.id,
             'view_mode': 'form',
             'target': 'current',
+        }
+
+    def action_open_store_order(self):
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_url',
+            'url': self.si_id.get_order_url(self.name),
+            'target': 'new',
         }

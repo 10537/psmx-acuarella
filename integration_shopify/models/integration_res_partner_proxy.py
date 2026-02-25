@@ -85,7 +85,7 @@ class IntegrationResPartnerProxy(models.TransientModel):
         """
         partner = super(IntegrationResPartnerProxy, self)._post_update_partner(partner)
 
-        if not self.integration_id.is_shopify():
+        if not self.integration_id.is_integration_shopify:
             return partner
 
         metafield_mappings = self.integration_id.customer_metafield_mapping_ids
@@ -94,7 +94,7 @@ class IntegrationResPartnerProxy(models.TransientModel):
             return partner
 
         # Retrieve meta fields associated with the customer
-        customer_metafields = self.integration_id.get_object_metafields('customer', self.external_id)
+        customer_metafields = self.integration_id.adapter.get_customer_metafields_by_id(self.external_id)
 
         if not customer_metafields:
             return partner

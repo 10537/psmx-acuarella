@@ -29,14 +29,13 @@ class ProductAttributeValue(models.Model):
     def to_export_format(self, integration):
         self.ensure_one()
 
-        external_id = self.try_to_external(integration)
         attribute = self.attribute_id.to_external_or_export(integration)
-        name = integration.convert_translated_field_to_integration_format(self, 'name')
+        name = self.convert_field_translations_to_external(integration.id, 'name')
 
         return {
             'name': name,
             'attribute': attribute,
-            'external_id': external_id,
+            'external_id': self.get_external_code(integration.id),
         }
 
     def export_with_integration(self, integration):

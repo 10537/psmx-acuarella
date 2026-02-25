@@ -27,7 +27,7 @@
                     <field name="item_id"/>
                     <field name="external_item_id"/>
                     <group expand="0" string="Group By">
-                        <filter string="Sale Integration" name="group_by_integration_id" context="{'group_by': 'integration_id'}"/>
+                        <filter string="E-Commerce Store" name="group_by_integration_id" context="{'group_by': 'integration_id'}"/>
                     </group>
                 </search>
             </field>
@@ -35,6 +35,7 @@
 
         <record id="integration_product_pricelist_item_external_action" model="ir.actions.act_window">
             <field name="name">External Pricelist Items</field>
+            <field name="path">eci-external-pricelist-items</field>
             <field name="res_model">integration.product.pricelist.item.external</field>
             <field name="view_mode">list</field>
             <field name="groups_id" eval="[(4, ref('base.group_no_one'))]"/>

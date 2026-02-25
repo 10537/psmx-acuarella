@@ -24,9 +24,9 @@
                     <field name="attribute_value_id"/>
                     <field name="external_attribute_value_id"/>
                     <field name="integration_id"/>
-                    <filter string="Not Mapped" name="not_mapped" domain="[('attribute_value_id', '=', False)]" />
+                    <filter string="Not Mapped" name="not_mapped" domain="[('attribute_value_id', '=', False)]"/>
                     <group expand="0" string="Group By">
-                        <filter string="Sale Integration" name="group_by_integration_id" context="{'group_by': 'integration_id'}"/>
+                        <filter string="E-Commerce Store" name="group_by_integration_id" context="{'group_by': 'integration_id'}"/>
                     </group>
                 </search>
             </field>
@@ -34,6 +34,7 @@
 
         <record id="integration_product_attribute_value_mapping_action" model="ir.actions.act_window">
             <field name="name">Attribute Value Mappings</field>
+            <field name="path">eci-attribute-value-mappings</field>
             <field name="res_model">integration.product.attribute.value.mapping</field>
             <field name="view_mode">list</field>
             <field name="context">{'search_default_not_mapped': 1}</field>

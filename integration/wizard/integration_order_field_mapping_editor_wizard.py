@@ -1,12 +1,7 @@
 # See LICENSE file for full copyright and licensing details.
 
-import json
-import logging
-
-from odoo import models, fields
+from odoo import models, fields, _
 from odoo.exceptions import UserError
-
-_logger = logging.getLogger(__name__)
 
 
 class IntegrationOrderFieldMappingEditorWizard(models.TransientModel):
@@ -14,8 +9,8 @@ class IntegrationOrderFieldMappingEditorWizard(models.TransientModel):
     _description = 'Integration Order Field Mapping Editor Wizard'
 
     integration_id = fields.Many2one(
+        string='E-Commerce Store',
         related='mapping_field_id.integration_id',
-        string='Integration',
     )
 
     mapping_field_id = fields.Many2one(
@@ -38,50 +33,50 @@ class IntegrationOrderFieldMappingEditorWizard(models.TransientModel):
     )
 
     integration_code = fields.Text(
-        related='mapping_field_id.preprocess_script',
-        string="Code",
+        related='mapping_field_id.script',
+        string='Code',
         readonly=False,
-        help="Python code to execute.",
+        help='Python code to execute.',
     )
 
     result = fields.Char(
-        string="Result",
+        string='Result',
         readonly=True,
-        help="Result of the executed Python code."
+        help='Result of the executed Python code.'
     )
 
     def action_test(self):
         """Test the Python script with external JSON input and field path."""
         self.ensure_one()
 
-        if not self.test_input_file_id or not self.external_order_field:
-            raise UserError('Please provide both an External Data File and an External Order Field.')
+        input_file = self.test_input_file_id
 
-        # Try to resolve the value via external_order_field path
-        order_data = json.loads(self.test_input_file_id.raw_data)
-        value = self.mapping_field_id.calculate_value(order_data, show_error=True)
+        if not input_file or not self.external_order_field:
+            raise UserError(_('Please provide both an External Data File and an External Order Field.'))
+
+        value = self.mapping_field_id.calculate_order_import_value(
+            input_file.to_dict(),
+            raise_error=True,
+        )
         self.result = str(value)
 
-        return {
-            'type': 'ir.actions.act_window',
-            'name': 'Write Pre-processing Script',
-            'res_model': self._name,
-            'view_mode': 'form',
-            'res_id': self.id,
-            'target': 'new',
-            'context': self.env.context,
-        }
+        return self.open_form()
 
     def action_save_code(self):
         """Save the current code and external field to the mapping record."""
         self.ensure_one()
 
         if not self.mapping_field_id:
-            raise UserError("No mapping record associated.")
+            raise UserError(_('No mapping record associated.'))
 
         self.mapping_field_id.write({
-            'preprocess_script': self.integration_code,
+            'script': self.integration_code,
             'external_order_field': self.external_order_field,
         })
 
         return {'type': 'ir.actions.act_window_close'}
+
+    def open_form(self):
+        action = self.get_formview_action()
+        action['target'] = 'new'
+        return action

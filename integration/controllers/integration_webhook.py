@@ -3,15 +3,13 @@
 import json
 import logging
 
-from psycopg2 import Error
 from werkzeug.wrappers import Response
 
-from odoo import api, registry, SUPERUSER_ID, _
+from odoo import _
 from odoo.http import request
 from odoo.exceptions import ValidationError
 
 from .utils import with_webhook_context
-from ..models.sale_integration import LOG_SEPARATOR
 
 
 _logger = logging.getLogger(__name__)
@@ -62,8 +60,7 @@ class IntegrationWebhook:
 
         # 5. Verify webhook-line activation
         topic = self.get_webhook_topic()
-        webhook_line_id = integration.webhook_line_ids \
-            .filtered(lambda x: x.technical_name == topic)
+        webhook_line_id = integration.webhook_line_ids.filtered(lambda x: x.technical_name == topic)
         if not webhook_line_id.is_active:
             return False, 'Disabled %s webhook in Odoo "%s".' % (name, topic)
 
@@ -103,38 +100,12 @@ class IntegrationWebhook:
         message_data = json.dumps(message_dict, indent=4)
         method_name = self._get_hook_name_method()
         vals = {
-            'name': f'{self.integration_type}: {method_name}',
-            'type': 'client',
-            'level': 'DEBUG',
-            'dbname': request.env.cr.dbname,
+            'integration_id': integration.id,
+            'event_type': 'webhook',
+            'event_name': method_name,
             'message': message_data,
-            'path': self.__module__,
-            'func': self.__class__.__name__,
-            'line': str(integration),
         }
         return vals
-
-    def _create_log(self, integration, *args, **kw):
-        vals = self._prepare_log_vals(integration, *args, **kw)
-        self._print_debug_data(vals)
-        return self._save_log(vals)
-
-    def _save_log(self, vals):
-        try:
-            db_registry = registry(request.env.cr.dbname)
-            with db_registry.cursor() as new_cr:
-                new_env = api.Environment(new_cr, SUPERUSER_ID, {})
-                log = new_env['ir.logging'].create(vals)
-        except Error:
-            log = request.env['ir.logging']
-
-        return log
-
-    def _print_debug_data(self, message_data):
-        _logger.info(LOG_SEPARATOR)
-        _logger.info('%s WEBHOOK DEBUG', self.integration_type)
-        _logger.info(message_data)
-        _logger.info(LOG_SEPARATOR)
 
     def _process_event(self, integration, external_id):
         """
@@ -183,38 +154,6 @@ class IntegrationWebhook:
         """
         raise NotImplementedError('Subclasses must define _get_events_mapping')
 
-    def _handle_missing_order(self, integration, external_order_id, data):
-        """
-        Handle the common logic for checking if an order exists and deciding whether to import it.
-
-        Args:
-            integration: The integration instance
-            external_order_id: The external order ID
-            data: The pipeline data
-
-        Returns:
-            tuple: (should_import, response_message) where should_import is a boolean
-                   indicating if the order should be imported, and response_message
-                   is the response to return if should_import is True
-        """
-        # Check if order exists in the system
-        input_file = integration._get_input_file(external_order_id)
-
-        if not input_file:
-            # Order doesn't exist, check if it should be imported based on status
-            if not integration.is_importable_order_status(data['integration_workflow_states']):
-                message = f'Order with code={external_order_id} is not in the expected status for import.'
-                _logger.info(message)
-                return False, Response(message)
-
-            # Order doesn't exist but status matches import filters, trigger import
-            integration.fetch_order_by_id_with_delay(external_order_id, data)
-            return True, Response(
-                f'Order import job created for order with code={external_order_id}'
-            )
-
-        return None, None  # Order exists, continue with normal processing
-
     # Handle orders
     @with_webhook_context
     def _process_create_order(self, integration, external_order_id):
@@ -223,6 +162,11 @@ class IntegrationWebhook:
         """
         _logger.info(f'Call {integration.name} webhook controller: _process_create_order')
 
+        if not integration.is_order_import_enabled:
+            message = f'Order import is disabled for integration {integration.name} or integration is not active.'
+            _logger.info(message)
+            return Response(message)
+
         data = self._prepare_pipeline_data()
 
         if not integration.is_importable_order_status(data['integration_workflow_states']):
@@ -230,7 +174,17 @@ class IntegrationWebhook:
             _logger.info(message)
             return Response(message)
 
-        integration.fetch_order_by_id_with_delay(external_order_id, data)
+        # Check cut-off date if configured
+        date_order = data.get('date_order')
+        if not integration.is_importable_order_date(date_order):
+            message = (
+                f'Order with code={external_order_id} was created before the cut-off date '
+                f'({integration.orders_cut_off_datetime}). Order creation date: {date_order}.'
+            )
+            _logger.info(message)
+            return Response(message)
+
+        integration.fetch_order_by_id_with_delay(external_order_id)
 
         return Response(f'Job created for order with code={external_order_id}. Action: create order')
 
@@ -241,18 +195,21 @@ class IntegrationWebhook:
         """
         _logger.info(f'Call {integration.name} webhook controller: _process_update_status_order')
 
+        if not integration.is_order_import_enabled:
+            message = f'Order import is disabled for integration {integration.name} or integration is not active.'
+            _logger.info(message)
+            return Response(message)
+
         data = self._prepare_pipeline_data()
-        status_code = data['integration_workflow_states'][0]
+        status_codes = data['integration_workflow_states']
 
         # Handle order existence check
-        should_import, response = self._handle_missing_order(
-            integration, external_order_id, data
-        )
+        should_import, message = integration._handle_missing_order(external_order_id, status_codes, data['date_order'])
         if should_import is not None:
-            return response
+            return Response(message)
 
         # Order exists, proceed with status update logic
-        if integration.is_canceled_order_status(status_code):
+        if integration.is_canceled_order_status(status_codes[0]):
             integration.cancel_order_by_id_with_delay(external_order_id, data)
             return Response(f'Job created for order with code={external_order_id}. Action: cancel order')
 
@@ -276,7 +233,7 @@ class IntegrationWebhook:
 
         integration \
             .with_context(external_product_name=name) \
-            .update_product_by_id_with_delay(external_product_id)
+            .update_product_by_id_with_delay(external_product_id, check_hook_gap=True)
         # Right, Update it! Product creating may be invoked from update function if the product does not exist in Odoo.
 
         return Response(f'Job created for product with code={external_product_id}. Action: create product')
@@ -292,7 +249,7 @@ class IntegrationWebhook:
 
         integration \
             .with_context(external_product_name=name) \
-            .update_product_by_id_with_delay(external_product_id)
+            .update_product_by_id_with_delay(external_product_id, check_hook_gap=True)
 
         return Response(f'Job created for product with code={external_product_id}. Action: update product')
 

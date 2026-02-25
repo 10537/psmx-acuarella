@@ -20,6 +20,7 @@
 
         <record id="integration_pricelist_wizard_action" model="ir.actions.act_window">
             <field name="name">Import Pricelists Wizard</field>
+            <field name="path">eci-import-pricelists-wizard</field>
             <field name="res_model">integration.pricelist.wizard</field>
             <field name="view_mode">form</field>
             <field name="view_id" ref="integration.integration_pricelist_wizard_form_view"/>

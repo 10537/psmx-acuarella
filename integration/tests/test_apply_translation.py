@@ -203,9 +203,9 @@ class TestTranslations(OdooIntegrationInit):
 
         External = template.env['integration.external.mixin']
 
-        template_updated = External.create_or_update_with_translation(
-            integration,
-            template,
+        template_updated = External.create_or_update_with_translations(
+            integration.id,
+            template.with_context(skip_product_export=True),
             self.translation_vals,
         )
 
@@ -289,9 +289,9 @@ class TestTranslations(OdooIntegrationInit):
 
         External = template.env['integration.external.mixin']
 
-        template_updated = External.create_or_update_with_translation(
-            integration,
-            template,
+        template_updated = External.create_or_update_with_translations(
+            integration.id,
+            template.with_context(skip_product_export=True),
             self.translation_vals,
         )
 

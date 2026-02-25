@@ -3,6 +3,7 @@
 import logging
 
 from odoo import fields, models, api, _
+from odoo.tools import float_is_zero
 from odoo.tools.misc import groupby
 
 
@@ -41,6 +42,7 @@ class ProductProduct(models.Model):
         string='E-Commerce Stores',
         copy=False,
         default=lambda self: self._prepare_default_integration_ids(),
+        tracking=True,
         help='Allow to select which channel this product should be synchronized to. '
              'By default it syncs to all.',
     )
@@ -48,7 +50,7 @@ class ProductProduct(models.Model):
     integration_mapping_ids = fields.One2many(
         comodel_name='integration.product.product.mapping',
         inverse_name='product_id',
-        string='Integration Mappings',
+        string='E-Commerce Store Mappings',
     )
 
     mapping_count = fields.Integer(
@@ -57,9 +59,28 @@ class ProductProduct(models.Model):
         help='The number of mappings associated with this variant.',
     )
 
+    # Migration fields
+    integration_variant_image_ids = fields.One2many(
+        comodel_name='ecommerce.product.image',
+        inverse_name='product_variant_id',
+        string='E-Commerce Variant Images',
+    )
+
     @property
     def is_consumable_storable(self):
         return self.type == 'consu' and self.is_storable
+
+    def _get_view_postprocessed(self, view, arch, **options):
+        # Redefined the standard method to update a form-view architecture
+        arch, models_ = super()._get_view_postprocessed(view, arch, **options)
+
+        if view.type == 'form':
+            arch = self._exclude_convert_to_webp_option(
+                arch,
+                '//field[@name="image_1920"] | //field[@name="product_variant_image_ids"]',
+            )
+
+        return arch, models_
 
     @property
     def integration_should_export_inventory(self):
@@ -172,32 +193,35 @@ class ProductProduct(models.Model):
     def export_images_to_integration(self):
         return self.product_tmpl_id.export_images_to_integration()
 
-    @api.model
-    def fields_view_get(self, view_id=None, view_type='form', toolbar=False, submenu=False):
-        form_data = super().fields_view_get(
-            view_id=view_id,
-            view_type=view_type,
-            toolbar=toolbar,
-            submenu=submenu,
-        )
-
-        if view_type == 'search':
-            form_data = self._update_variant_form_architecture(form_data)
-
-        return form_data
-
     def change_external_integration_variant(self):
         templates = self.mapped('product_tmpl_id')
         return templates.change_external_integration_template()
 
-    def init_variant_export_converter(self, integration):
-        assert len(self) <= 1, _('Recordset is not allowed.')
-        integration.ensure_one()
-        return integration.init_send_field_converter(self)
-
     def to_export_format(self, integration):
-        converter = self.init_variant_export_converter(integration)
-        return converter.convert_to_external()
+        self.ensure_one()
+
+        attribute_values = []
+        for attribute_value in self.product_template_attribute_value_ids:  # product_template_variant_value_ids
+            attr_value = attribute_value.product_attribute_value_id
+            if attr_value.exclude_from_synchronization:
+                continue
+
+            value = attr_value.to_export_format_or_export(integration)
+            attribute_values.append(value)
+
+        external_record = self.to_external_record(integration, raise_error=False)
+
+        result = {
+            'id': self.id,
+            'odoo_external_id': external_record.id,
+            'external_id': external_record.code,
+            'attribute_values': attribute_values,
+            'reference': getattr(self, integration.product_reference_name),
+            'reference_api_field': integration.variant_reference_api_name,
+            'fields': self.calculate_export_fields_data(integration.id),
+        }
+
+        return result
 
     def get_bom_parent_templates_recursively(self, visited_variants=None):
         """
@@ -229,9 +253,6 @@ class ProductProduct(models.Model):
 
         for product in self:
             product.price_extra += product.variant_extra_price
-
-    def _update_variant_form_architecture(self, form_data):
-        return self.product_tmpl_id._update_template_form_architecture(form_data)
 
     def action_force_export_inventory(self):
         integrations = self.env['sale.integration'].search([
@@ -321,7 +342,7 @@ class ProductProduct(models.Model):
         """TODO: drop it after 1.17.0 release"""
         return {}
 
-    def _compute_qty_producible(self, qty_field):
+    def _compute_qty_producible(self, qty_field, visited_products=None, depth=0):
         """
         Compute the maximum quantity of the product that can be manufactured based on available stock.
 
@@ -329,58 +350,116 @@ class ProductProduct(models.Model):
         When modifying this method, please don't forget to update _prepare_calculation_qty_with_bom method also
 
         :param qty_field: String, name of the field containing available quantity.
+        :param visited_products: Set of product IDs already visited in the recursion to avoid cycles.
+        :param depth: Internal—current recursion depth (for debugging).
         :return: Integer, maximum quantity that can be manufactured.
         """
-        available_qty = getattr(self, qty_field)
+        self.ensure_one()
 
-        manufacture_boms = self.bom_ids.filtered(lambda x: x.type == 'normal')
-        if not manufacture_boms:
-            return available_qty
+        if visited_products is None:
+            visited_products = set()
 
-        manufacture_bom = manufacture_boms[0]
+        # Fetch current available quantity with location and company context
+        loc_id = self.env.context.get('location')
+        company = self.env.company
+        context = {'location': loc_id, 'company_id': company.id}
 
-        min_possible_qty = None
+        # Read current available qty for the product in the chosen context.
+        product_with_context = self.with_context(**context)
+        available_qty = getattr(product_with_context, qty_field, 0.0)
 
-        for bom_line in manufacture_bom.bom_line_ids:
-            component = bom_line.product_id
-            required_component_qty = bom_line.product_qty
-            available_component_qty = getattr(component, qty_field, 0)
+        product_id = self.id
+        product_name = self.display_name
 
-            # Skip service components and consumables without BOMs
-            if component.type == 'service' or \
-                    (component.type == 'consu' and not component.is_storable and not component.bom_ids):
-                continue
+        # Detect recursion cycles
+        if product_id in visited_products:
+            _logger.warning(f'Cycle detected in BOM for product {product_name} (ID {product_id}) at depth {depth}')
+            return 0
 
-            # Recursively compute available quantity if the component has a BOM
-            if component.bom_ids and component.type == 'consu':
-                available_component_qty = component._compute_qty_producible(qty_field)
+        visited_products.add(product_id)
 
-            # If the UoM of the component is different from the product's UoM, convert the quantity
-            if bom_line.product_uom_id != component.uom_id:
-                available_component_qty = component.uom_id._compute_quantity(
-                    available_component_qty, bom_line.product_uom_id
-                )
+        try:
+            # Find manufacture BoM with active_test=False to include company-specific BOMs
+            # The environment already has the company context, so explicit company_id is redundant but harmless.
+            # It's better to rely on the env context set by the caller.
+            bom = self.env['mrp.bom'].with_context(location=loc_id)._bom_find(
+                products=self,
+                company_id=company.id,
+                bom_type='normal'
+            ).get(self)
+            if not bom:
+                return available_qty
 
-            # If the component is not available, the product cannot be manufactured
-            if not required_component_qty or available_component_qty < required_component_qty:
-                min_possible_qty = 0
-                break
+            # Since we use self, BOM needs to be in the same company context.
+            bom = bom.with_company(company)
+            min_possible_qty = None
 
-            possible_bom_batches = available_component_qty // required_component_qty
+            __, bom_line_data = bom.explode(self.with_company(company), 1.0)
 
-            if min_possible_qty is None:
-                min_possible_qty = possible_bom_batches
-            else:
-                min_possible_qty = min(min_possible_qty, possible_bom_batches)
+            for bom_line, line_data in bom_line_data:
+                component = bom_line.product_id
+                component_uom = component.uom_id
+                required_component_qty = float(line_data.get('qty', 0.0) or 0.0)
 
-        if min_possible_qty:
-            # Calculate the maximum quantity based on the number of BoMs that can be produced
-            min_possible_qty = min_possible_qty * manufacture_bom.product_qty
+                # Apply context for component based on selected qty_field
+                component = component.with_context(**context)
+                available_component_qty = getattr(component, qty_field, 0.0)
 
-            # If the UoM of the product is different from the BoM's UoM, convert the quantity
-            if min_possible_qty and self.uom_id != manufacture_bom.product_uom_id:
-                min_possible_qty = manufacture_bom.product_uom_id._compute_quantity(
-                    min_possible_qty, self.uom_id
-                )
+                # Skip service components and consumables without BOMs
+                if component.type == 'service' or \
+                        (component.type == 'consu' and not component.is_storable and not component.bom_ids):
+                    continue
 
-        return available_qty + (min_possible_qty or 0)
+                # Recursively compute available quantity if the component has a BOM
+                if component.bom_ids and component.type in ('consu', 'product'):
+                    producible_from_bom = component._compute_qty_producible(
+                        qty_field, visited_products=visited_products, depth=depth + 1,
+                    ) or 0.0
+                    # Add producible quantity from BOM to available quantity
+                    available_component_qty += producible_from_bom
+
+                # Skip components with zero required quantity — they do not constrain production
+                if float_is_zero(required_component_qty, precision_digits=6):
+                    continue
+
+                # If available_component_qty is 0 or less, we can't produce anything with this component
+                is_available_zero = float_is_zero(available_component_qty, precision_rounding=component_uom.rounding)
+                if is_available_zero or available_component_qty <= 0:
+                    min_possible_qty = 0
+                    break
+
+                # If the UoM of the component is different from the product's UoM, convert the quantity
+                if bom_line.product_uom_id != component.uom_id:
+                    available_component_qty = component.uom_id._compute_quantity(
+                        available_component_qty, bom_line.product_uom_id
+                    )
+
+                # Calculate how many batches we can make from this component
+                possible_bom_batches = available_component_qty // required_component_qty
+
+                if min_possible_qty is None:
+                    min_possible_qty = possible_bom_batches
+                else:
+                    min_possible_qty = min(min_possible_qty, possible_bom_batches)
+
+            if min_possible_qty:
+                # Calculate the maximum quantity based on the number of BoMs that can be produced
+                min_possible_qty = min_possible_qty * bom.product_qty
+
+                # If the UoM of the product is different from the BoM's UoM, convert the quantity
+                if (
+                    min_possible_qty
+                    and self.uom_id != bom.product_uom_id
+                    and self.uom_id.category_id == bom.product_uom_id.category_id
+                ):
+                    min_possible_qty = bom.product_uom_id._compute_quantity(
+                        min_possible_qty, self.uom_id
+                    )
+            total_producible = min_possible_qty or 0
+            _logger.info(f'Computed producible quantity for {product_name}: {total_producible}')
+
+            return total_producible
+
+        finally:
+            # Clean up the visited products to avoid affecting siblings at the same depth
+            visited_products.remove(product_id)

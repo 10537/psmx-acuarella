@@ -10,13 +10,13 @@ class IntegrationProductPricelistMapping(models.Model):
     _mapping_fields = ('pricelist_id', 'external_pricelist_id')
 
     pricelist_id = fields.Many2one(
-        comodel_name='product.pricelist',
         string='Odoo Pricelist',
+        comodel_name='product.pricelist',
         ondelete='cascade',
     )
     external_pricelist_id = fields.Many2one(
-        comodel_name='integration.product.pricelist.external',
         string='External Pricelist',
+        comodel_name='integration.product.pricelist.external',
         ondelete='cascade',
         required=True,
     )

@@ -2,14 +2,14 @@
 
 import itertools
 import logging
-from functools import reduce
-from lxml import etree
 from typing import List
+from functools import reduce
 
 from odoo import models, fields, api, _
 from odoo.exceptions import ValidationError, UserError
 
 from ..tools import ExternalImage
+from ..exceptions import NotMappedToExternal
 from ..models.sale_integration import EXPORT_EXTERNAL_BLOCK
 
 
@@ -97,10 +97,6 @@ class ProductTemplate(models.Model):
         inverse_name='product_tmpl_id',
     )
 
-    optional_product_ids = fields.Many2many(
-        'product.template', 'product_optional_rel', 'src_id', 'dest_id',
-        string='Optional Products', check_company=True)
-
     to_force_sync_pricelist = fields.Boolean(
         string='Force Update Pricelists',
         help='Export specific prices of the product even if the are no pricelist items. '
@@ -127,7 +123,7 @@ class ProductTemplate(models.Model):
     integration_mapping_ids = fields.One2many(
         comodel_name='integration.product.template.mapping',
         inverse_name='template_id',
-        string='Integration Mappings',
+        string='E-Commerce Store Mappings',
     )
 
     mapping_count = fields.Integer(
@@ -136,9 +132,55 @@ class ProductTemplate(models.Model):
         help='The number of mappings associated with this product.',
     )
 
+    external_tag_group_ids = fields.One2many(
+        comodel_name='product.template.external.tag.group',
+        inverse_name='product_tmpl_id',
+        string='External Tags',
+    )
+
+    # Migration fields
+    integration_default_category_id = fields.Many2one(
+        comodel_name='ecommerce.product.category',
+        string='E-Commerce Default Category',
+    )
+
+    integration_category_ids = fields.Many2many(
+        comodel_name='ecommerce.product.category',
+        relation='ecommerce_product_category_product_template_rel',
+        string='E-Commerce Product Category',
+    )
+
+    integration_template_image_ids = fields.One2many(
+        comodel_name='ecommerce.product.image',
+        inverse_name='product_tmpl_id',
+        string='E-Commerce Product Media',
+        copy=True,
+    )
+
     @property
     def is_consumable_storable(self):
         return self.type == 'consu' and self.is_storable
+
+    def _get_view_postprocessed(self, view, arch, **options):
+        # Redefined the standard method to update a form-view architecture
+        arch, models_ = super()._get_view_postprocessed(view, arch, **options)
+
+        if view.type == 'form':
+            arch = self._exclude_convert_to_webp_option(
+                arch,
+                '//field[@name="image_1920"] | //field[@name="product_template_image_ids"]',
+            )
+
+        return arch, models_
+
+    @property
+    def integration_should_export_inventory(self):
+        """Determine if the product template should be included in inventory export."""
+        return (
+            (self.is_consumable_storable or (self.type == 'consu' and bool(self.bom_ids)))
+            and not self.exclude_from_synchronization
+            and not self.exclude_from_synchronization_stock
+        )
 
     def _compute_mapping_count(self):
         for rec in self:
@@ -149,22 +191,38 @@ class ProductTemplate(models.Model):
         for template in self:
             all_lines = template.valid_product_template_attribute_line_ids
             lines_without_no_variant = all_lines._without_no_variant_attributes()
-            lines = lines_without_no_variant.filtered(lambda l: len(l.value_ids) != 1)
+            lines = lines_without_no_variant.filtered(lambda line: len(line.value_ids) != 1)
 
-            combination_count = 0
+            combinations_count = 0
             value_count = [len(x.value_ids) for x in lines]
             if value_count:
-                combination_count = reduce(lambda a, b: a * b, value_count)
-            variant_count = len(template.with_context(active_test=False).product_variant_ids)
-            need_create_variants = combination_count > variant_count
+                combinations_count = reduce(lambda a, b: a * b, value_count)
+            variants_count = len(template.with_context(active_test=False).product_variant_ids)
+            need_create_variants = combinations_count > variants_count
             template.is_used_dynamic_attributes = template.has_dynamic_attributes() and \
                 need_create_variants
 
-    def get_integration_kits(self, limit=1):
+    def get_or_create_tag_group(self, integration_id: int, language_id: int = False):
         self.ensure_one()
 
-        integration = self.env['sale.integration'].browse(self._context.get('integration_id'))
-        integration.ensure_one()
+        group = self.env['product.template.external.tag.group'].search([
+            ('product_tmpl_id', '=', self.id),
+            ('integration_id', '=', integration_id),
+            ('external_language_id', '=', language_id),
+        ], limit=1)
+
+        if not group:
+            group = self.env['product.template.external.tag.group'].create({
+                'product_tmpl_id': self.id,
+                'integration_id': integration_id,
+                'external_language_id': language_id,
+            })
+
+        return group
+
+    def get_integration_kits(self, integration_id: int, limit=1):
+        self.ensure_one()
+        integration = self.env['sale.integration'].browse(integration_id)
 
         kit = self.env['mrp.bom'].search([
             ('active', '=', True),
@@ -178,8 +236,10 @@ class ProductTemplate(models.Model):
     def _get_tmpl_id_for_log(self):
         return self.id
 
-    def _export_inventory_on_template(self, integration):
+    def _export_inventory_on_template(self, integration_id: int):
         self.ensure_one()
+
+        integration = self.env['sale.integration'].browse(integration_id)
         integration.ensure_one()
 
         if self.exclude_from_synchronization:
@@ -273,10 +333,11 @@ class ProductTemplate(models.Model):
         column2='sale_integration_id',
         compute='_compute_integration_ids',
         inverse='_inverse_integration_ids',
-        domain=[('state', '=', 'active')],
         search=_search_integrations,
+        domain=[('state', '=', 'active')],
         string='E-Commerce Stores',
         default=lambda self: self._prepare_default_integration_ids(),
+        tracking=True,
         help='Allow to select which stores this product should be synchronized to. '
              'By default it syncs to all.',
     )
@@ -411,27 +472,13 @@ class ProductTemplate(models.Model):
         self.ensure_one()
 
         integrations = self.mapped('product_variant_ids.integration_ids').filtered(
-            lambda x: x.is_active and x.job_enabled('export_template')
+            lambda i: i.is_product_template_export_enabled
         )
 
         if self.company_id:
             integrations = integrations.filtered(lambda x: x.company_id == self.company_id)
 
         return integrations
-
-    @api.model
-    def fields_view_get(self, view_id=None, view_type='form', toolbar=False, submenu=False):
-        form_data = super().fields_view_get(
-            view_id=view_id,
-            view_type=view_type,
-            toolbar=toolbar,
-            submenu=submenu,
-        )
-
-        if view_type == 'search':
-            form_data = self._update_template_form_architecture(form_data)
-
-        return form_data
 
     @api.onchange('public_categ_ids')
     def _onchange_public_categ_ids(self):
@@ -495,7 +542,7 @@ class ProductTemplate(models.Model):
                 .with_context(company_id=integration.company_id.id) \
                 .with_delay(**kw).export_template_images_verbose(
                     self.id,
-                    erase_mappings=self._context.get('integration_erase_mappings'),
+                    erase_mappings=self.env.context.get('integration_erase_mappings'),
                 )
 
             self.with_context(default_integration_id=integration.id).job_log(job)
@@ -620,8 +667,8 @@ class ProductTemplate(models.Model):
             return False, message
 
         # 1. Check mandatory fields
-        template_mapping = self.try_to_external(integration)
-        if not template_mapping:
+        external_id = self.get_external_code(integration.id)
+        if not external_id:
             is_valid, message = self._check_filling_mandatory_fields(integration)
             if not is_valid:
                 return not_valid(message)
@@ -666,17 +713,31 @@ class ProductTemplate(models.Model):
 
         return True, ''
 
-    def init_template_export_converter(self, integration):
-        integration.ensure_one()
-
+    def to_export_format(self, integration):
         if not self.active:
             self = self.with_context(active_test=False)
 
-        return integration.init_send_field_converter(self)
+        variants = self.prepare_integration_variants(integration.id)
 
-    def to_export_format(self, integration):
-        converter = self.init_template_export_converter(integration)
-        return converter.convert_to_external()
+        products = []
+        for variant in variants:
+            data = variant.to_export_format(integration)
+            products.append(data)
+
+        external_record = self.to_external_record(integration, raise_error=False)
+
+        result = {
+            'id': self.id,
+            'odoo_external_id': external_record.id,
+            'external_id': external_record.code,
+            'type': self.type,
+            'kits': self._get_kits(integration.id),
+            'products': products,
+            'variants_count': len(variants),
+            'fields': self.calculate_export_fields_data(integration.id),
+        }
+
+        return result
 
     def to_images_export_format(self, integration) -> List[ExternalImage]:
         self.ensure_one()
@@ -699,32 +760,17 @@ class ProductTemplate(models.Model):
 
         return result
 
+    def import_template_hook(self, integration_id: int, force_import: bool = False):
+        """Hook for import template"""
+        pass
+
+    def export_template_hook(self, integration_id: int, force_export: bool = False):
+        """Hook for export template"""
+        pass
+
     def _get_extra_images(self):
         images = super()._get_extra_images()
         return images.filtered(lambda x: not x.product_variant_id)
-
-    def _template_converter_update(self, template_data, integration, external_record):
-        """Hook method for redefining."""
-        return template_data
-
-    def _update_template_form_architecture(self, form_data):
-        active_integrations = self.get_active_integrations()
-
-        if not active_integrations:
-            return form_data
-
-        arch_tree = etree.fromstring(form_data['arch'])
-
-        for integration in active_integrations:
-            arch_tree.append(etree.Element('filter', attrib={
-                'string': integration.name.capitalize(),
-                'name': f'filter_{integration.type_api}_{integration.id}',
-                'domain': f'[("integration_ids", "=", {integration.id})]',
-            }))
-
-        form_data['arch'] = etree.tostring(arch_tree, encoding='unicode')
-
-        return form_data
 
     def _search_pricelist_items(self, p_ids=None, i_ids=None):
         domain = [
@@ -770,34 +816,69 @@ class ProductTemplate(models.Model):
         )
         return product_item_ids.union(categ_item_ids, global_item_ids)
 
-    # -------- Converter Specific Methods ---------
-    def get_integration_name_field(self):
-        name_field = 'name'
-        if self.website_product_name:
-            name_field = 'website_product_name'
-        return name_field
+    def convert_pricelists(self, integration_id: int, pricelist_ids=None, item_ids=None, raise_error=False):
+        force_sync_pricelist = self.to_force_sync_pricelist
+        if force_sync_pricelist:
+            pricelist_ids = item_ids = None
 
-    def get_integration_name(self, integration):
-        self.ensure_one()
-        return integration.convert_translated_field_to_integration_format(
-            self, self.get_integration_name_field()
+        def _format_result(prices):
+            return (
+                self.id,
+                self._name,
+                self.get_external_code(integration_id),
+                prices,
+                force_sync_pricelist,
+            )
+
+        t_prices_list = self._collect_specific_prices(
+            integration_id,
+            pricelist_ids=pricelist_ids,
+            item_ids=item_ids,
+            raise_error=raise_error,
         )
 
-    def get_default_category(self, integration):
-        self.ensure_one()
-        default_category = self.default_public_categ_id
-        if default_category:
-            return default_category.to_external_or_export(integration)
-        else:
-            return None
+        variant_data_list = list()
+        for variant in self.prepare_integration_variants(integration_id):
+            v_prices_list = variant._collect_specific_prices(
+                integration_id,
+                pricelist_ids=pricelist_ids,
+                item_ids=item_ids,
+                raise_error=raise_error,
+            )
+            if force_sync_pricelist or v_prices_list:
+                variant_data = _format_result(v_prices_list)
+                variant_data_list.append(variant_data)
 
-    def get_categories(self, integration):
+        if force_sync_pricelist or t_prices_list or variant_data_list:
+            tmpl_data = _format_result(t_prices_list)
+            return tmpl_data, variant_data_list
+
+        return tuple()
+
+    # -------- Converter Specific Methods ---------
+
+    def get_default_category(self, integration_id: int):
+        self.ensure_one()
+
+        default_category = self.default_public_categ_id
+
+        if default_category:
+            integration = self.env['sale.integration'].browse(integration_id)
+            return default_category.to_external_or_export(integration)
+
+        return None
+
+    def get_categories(self, integration_id: int):
+        integration = self.env['sale.integration'].browse(integration_id)
+
         return [
             x.to_external_or_export(integration)
             for x in self.public_categ_ids
         ]
 
-    def get_taxes(self, integration):
+    def get_taxes(self, integration_id: int):
+        integration = self.env['sale.integration'].browse(integration_id)
+
         result = []
         integration_company_taxes = self.taxes_id.filtered(
             lambda x: x.company_id == integration.company_id
@@ -825,7 +906,9 @@ class ProductTemplate(models.Model):
 
         return result
 
-    def get_product_features(self, integration):
+    def get_product_features(self, integration_id: int):
+        integration = self.env['sale.integration'].browse(integration_id)
+
         return [
             {
                 'id': feature_line.feature_id.to_external_or_export(integration),
@@ -886,7 +969,7 @@ class ProductTemplate(models.Model):
         }
 
     def _create_variant_ids(self):
-        if not self.env.context.get('integration_product_creating'):
+        if not self.env.context.get('integration_first_time_import'):
             return super(ProductTemplate, self)._create_variant_ids()
 
         for tmpl in self:
@@ -899,7 +982,7 @@ class ProductTemplate(models.Model):
     def _is_combination_possible_by_config(self, combination, ignore_no_variant=False):
         self.ensure_one()
 
-        if self.env.context.get('integration_product_creating'):
+        if self.env.context.get('integration_first_time_import'):
             variant = self._get_variant_for_combination(combination)
             ProductMapping = self.env['integration.product.product.mapping']
 
@@ -963,6 +1046,88 @@ class ProductTemplate(models.Model):
     def show_product_mappings(self):
         """TODO: drop it after 1.17.0 release"""
         return {}
+
+    def prepare_integration_variants(self, integration_id: int):
+        """
+            Returns a sorted recordset of product variants filtered by integration.
+
+            The method filters the product variant records based on their integration_ids and
+                sorts them based on their
+            attribute values. The sorting is done in the following order:
+                1. The attribute ID of the attribute value
+                2. The sequence number of the attribute value.
+
+            Returns:
+                recordset: A sorted recordset of product variants filtered by integration.
+        """
+        variants = self.product_variant_ids.filtered(
+            lambda x: integration_id in x.integration_ids.ids).sorted(
+            key=lambda v: [
+                (attr.attribute_id.id, attr.sequence)
+                for attr in
+                v.product_template_attribute_value_ids.mapped('product_attribute_value_id')
+            ])
+
+        return variants
+
+    def _get_template_attribute_values(self, integration_id: int, attribute_value_ids: list):
+        ProductAttributeValue = self.env['product.attribute.value']
+        ProductTemplateAttributeValue = self.env['product.template.attribute.value']
+        template_attribute_value_ids = ProductTemplateAttributeValue.browse()
+        integration = self.env['sale.integration'].browse(integration_id)
+
+        for ext_attribute_value_id in attribute_value_ids:
+            if ext_attribute_value_id == '0':
+                continue
+
+            attribute_value_id = ProductAttributeValue.from_external(
+                integration,
+                ext_attribute_value_id,
+            )
+
+            template_attribute_value_ids |= ProductTemplateAttributeValue.search([
+                ('product_attribute_value_id', '=', attribute_value_id.id),
+                ('product_tmpl_id', '=', self.id),
+            ])
+
+        return template_attribute_value_ids
+
+    def _get_kits(self, integration_id: int):
+        # If the integration is configured to ignore BOMs, return an empty list
+        integration = self.env['sale.integration'].browse(integration_id)
+        if integration.ignore_boms_for_product_export:
+            return []
+
+        result = []
+        kit = self.get_integration_kits(integration_id)
+
+        for line in kit.bom_line_ids:
+            try:
+                external_record = line.product_id.to_external_record(integration)
+            except NotMappedToExternal as ex:
+                raise UserError(
+                    _(
+                        'The product "%s" cannot be exported because one or more of its components have '
+                        'not been exported yet.\n'
+                        'Please review the following:\n'
+                        '1. Ensure that the component products have been exported by triggering '
+                        'their export if necessary.\n'
+                        '2. If the component products are still pending in the export queue, please wait for '
+                        'the export process to complete.\n'
+                        '3. If there are failed export jobs for the component products, review '
+                        'the errors, fix them, and restart the failed jobs.\n\n'
+                        'Details: %s'
+                    ) % (line.product_id.display_name, ex.args[0])
+                )
+
+            result.append({
+                'qty': line.product_qty,
+                'name': line.display_name,
+                'product_id': external_record.code,
+                'external_reference': external_record.external_reference,
+            })
+
+        return result
 
     @api.model
     def get_views(self, views, options=None):

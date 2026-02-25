@@ -16,6 +16,7 @@
 
         <record id="sale_order_payment_method_action" model="ir.actions.act_window">
             <field name="name">Payment Methods</field>
+            <field name="path">eci-payment-methods</field>
             <field name="res_model">sale.order.payment.method</field>
             <field name="view_mode">list</field>
         </record>

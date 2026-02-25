@@ -11,10 +11,12 @@
                     <field name="integration_id"/>
                     <field name="public_category_id"/>
                     <field name="external_public_category_id" domain="[('integration_id', '=', integration_id)]"/>
-                    <button type="object"
-                            name="import_categories"
+                    <button name="import_categories"
+                            type="object"
                             string="Import Category"
-                            invisible="public_category_id"/>
+                            invisible="public_category_id"
+                            icon="fa-download"
+                            class="btn-outline-primary"/>
                 </list>
             </field>
         </record>
@@ -27,9 +29,9 @@
                     <field name="public_category_id"/>
                     <field name="external_public_category_id"/>
                     <field name="integration_id"/>
-                    <filter string="Not Mapped" name="not_mapped" domain="[('public_category_id', '=', False)]" />
+                    <filter string="Not Mapped" name="not_mapped" domain="[('public_category_id', '=', False)]"/>
                     <group expand="0" string="Group By">
-                        <filter string="Sale Integration" name="group_by_integration_id" context="{'group_by': 'integration_id'}"/>
+                        <filter string="E-Commerce Store" name="group_by_integration_id" context="{'group_by': 'integration_id'}"/>
                     </group>
                 </search>
             </field>
@@ -37,6 +39,7 @@
 
         <record id="integration_product_public_category_mapping_action" model="ir.actions.act_window">
             <field name="name">Category Mappings</field>
+            <field name="path">eci-public-product-category-mappings</field>
             <field name="res_model">integration.product.public.category.mapping</field>
             <field name="view_mode">list</field>
             <field name="context">{'search_default_not_mapped': 1}</field>

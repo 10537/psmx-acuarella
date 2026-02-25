@@ -27,7 +27,7 @@ class ImportCustomersWizard(models.TransientModel):
         )
 
     def _get_sale_integration(self):
-        integration = self.env['sale.integration'].browse(self._context.get('active_ids'))
+        integration = self.env['sale.integration'].browse(self.env.context.get('active_ids'))
 
         if len(integration) > 1:
             raise UserError(self._not_defined_from_context())

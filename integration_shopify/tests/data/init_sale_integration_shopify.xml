@@ -260,7 +260,7 @@
         <record id="integration_shopify_res_lang_external_pl" model="integration.res.lang.external">
             <field name="code">pl</field>
             <field name="name">pl</field>
-            <field name="external_reference">pl_PL</field>
+            <field name="external_reference">pl</field>
             <field name="integration_id" ref="integration_shopify_test_1"/>
         </record>
 
@@ -273,7 +273,7 @@
         <record id="integration_shopify_res_lang_external_en" model="integration.res.lang.external">
             <field name="code">en</field>
             <field name="name">en</field>
-            <field name="external_reference">en_En</field>
+            <field name="external_reference">en</field>
             <field name="integration_id" ref="integration_shopify_test_1"/>
         </record>
 

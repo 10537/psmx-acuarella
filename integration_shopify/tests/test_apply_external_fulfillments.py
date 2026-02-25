@@ -9,7 +9,7 @@ from .init_integration_shopify import IntegrationShopifyBase
 from .json_data import fulfillment_list_1, fulfillment_list_2
 
 
-@tagged('post_install', '-at_install', 'test_integration_shopify')
+@tagged('post_install', '-at_install')
 class TestIntegrationShopifyFulfillments(IntegrationShopifyBase):
 
     def setUp(self):
@@ -35,7 +35,7 @@ class TestIntegrationShopifyFulfillments(IntegrationShopifyBase):
             name='table100',
             integration=self.integration,
         )
-        product_1 = self.env['product.template'].create(vals_product_1)
+        product_1 = self.env['product.template'].with_context(skip_product_export=True).create(vals_product_1)
         self.prod1 = product_1.product_variant_ids
 
         self.env['stock.quant'].create({
@@ -54,7 +54,7 @@ class TestIntegrationShopifyFulfillments(IntegrationShopifyBase):
             name='table200',
             integration=self.integration,
         )
-        product_2 = self.env['product.template'].create(vals_product_2)
+        product_2 = self.env['product.template'].with_context(skip_product_export=True).create(vals_product_2)
         self.prod2 = product_2.product_variant_ids
 
         self.env['stock.quant'].create({

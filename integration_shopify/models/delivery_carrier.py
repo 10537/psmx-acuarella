@@ -34,13 +34,10 @@ class DeliveryCarrier(models.Model):
 
         return super(DeliveryCarrier, self).get_external_carrier_code(integration)
 
-    def _get_carrier_by_external_name(self, integration, external_name):
+    def _get_carrier_by_external_name(self, integration: 'models.Model', external_name: str):
         if integration.is_integration_shopify:
-            carrier = self.env['delivery.carrier'].search([
-                ('shopify_code', '=', external_name),
+            return self.env['delivery.carrier'].search([
+                ('shopify_code', '=ilike', external_name),
             ], limit=1)
-
-            if carrier:
-                return carrier
 
         return super(DeliveryCarrier, self)._get_carrier_by_external_name(integration, external_name)

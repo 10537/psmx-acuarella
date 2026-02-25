@@ -56,22 +56,29 @@ class StockQuant(models.Model):
 
         return result
 
+    def unlink(self):
+        # Handle mainly an _unlink_zero_quants() case and other deletion cases
+        self.trigger_export()
+        return super(StockQuant, self).unlink()
+
     def trigger_export(self):
         if self.env.context.get('skip_inventory_export'):
             return
 
-        integrations = self.env['sale.integration'].get_integrations('export_inventory')
-        if not integrations:
+        _integrations = self.env['sale.integration'].get_integrations('export_inventory')
+        if not _integrations:
             return
 
         templates = self._get_templates_to_export_inventory()
 
         for template in templates:
             if template.company_id:
-                integrations = integrations.filtered(lambda x: x.company_id == template.company_id)
+                integrations = _integrations.filtered(lambda x: x.company_id == template.company_id)
+            else:
+                integrations = _integrations
 
             for integration in integrations:
-                template._export_inventory_on_template(integration)
+                template._export_inventory_on_template(integration.id)
 
     def _get_templates_to_export_inventory(self):
         templates = self.env['product.template']
@@ -81,8 +88,4 @@ class StockQuant(models.Model):
             templates |= product.product_tmpl_id
             templates |= product.get_bom_parent_templates_recursively()
 
-        return templates.filtered(
-            lambda x: x.is_consumable_storable or (x.type == 'consu' and bool(x.bom_ids))
-            and not x.exclude_from_synchronization
-            and not x.exclude_from_synchronization_stock
-        )
+        return templates.filtered(lambda x: x.integration_should_export_inventory)

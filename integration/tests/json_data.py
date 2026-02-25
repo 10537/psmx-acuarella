@@ -42,7 +42,7 @@ product_pt_1 = """
             "old_inventory_quantity": 0,
             "requires_shipping": true,
             "admin_graphql_api_id": "gid://odoo/ProductVariant/2222"
-        }
+        },
     ],
     "options": [
         {

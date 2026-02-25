@@ -7,14 +7,13 @@
                   sequence="3"/>
 
         <menuitem id="menu_product_ecommerce_fields_mapping"
-                  name="Product Fields Mapping"
+                  name="Field Synchronization"
                   parent="menu_product_fields"
                   action="product_ecommerce_field_mapping_action"/>
 
         <menuitem id="menu_product_ecommerce_fields"
-                  name="All Product Fields"
+                  name="Field Definitions"
                   parent="menu_product_fields"
-                  action="product_ecommerce_field_action"
-                  groups="base.group_no_one"/>
+                  action="product_ecommerce_field_action"/>
     </data>
 </odoo>

@@ -45,7 +45,7 @@ class AccountMove(models.Model):
         # invoice may be zero amounted. In this case it is automatically marked as paid
         res = super(AccountMove, self).action_post()
 
-        self.filtered(lambda x: x.is_invoice())._run_integration_validate_invoice_hooks()
+        self._integration_post_invoice_post()
 
         return res
 
@@ -71,17 +71,16 @@ class AccountMove(models.Model):
 
         return total_result
 
-    def _run_integration_validate_invoice_hooks(self):
-        total_result = list()
-
+    def _integration_post_invoice_post(self):
         for invoice in self:
-            invoice_result = list()
+            if not invoice.is_invoice():
+                continue
 
+            # This hook mark order as paid in e-commerce system (if payment method configured that way)
             if invoice.invoice_not_paid:
                 for order in invoice.invoice_line_ids.mapped('sale_line_ids.order_id'):
-                    res = order._integration_validate_invoice_order_hook()
-                    invoice_result.append((order, res))
+                    order._integration_validate_invoice_order_hook()
 
-            total_result.append((invoice, invoice_result))
-
-        return total_result
+            # Apply external payments
+            for order in invoice.invoice_line_ids.mapped('sale_line_ids.order_id'):
+                order._integration_apply_external_payments()

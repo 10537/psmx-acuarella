@@ -38,6 +38,7 @@
 
     <record id="product_feature_action" model="ir.actions.act_window">
         <field name="name">Product Features</field>
+        <field name="path">eci-product-features</field>
         <field name="type">ir.actions.act_window</field>
         <field name="res_model">product.feature</field>
         <field name="view_mode">list,form</field>

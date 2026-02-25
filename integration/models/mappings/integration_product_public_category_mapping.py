@@ -10,11 +10,13 @@ class IntegrationProductPublicCategoryMapping(models.Model):
     _mapping_fields = ('public_category_id', 'external_public_category_id')
 
     public_category_id = fields.Many2one(
+        string='Odoo E-Commerce Category',
         comodel_name='product.public.category',
         ondelete='cascade',
     )
 
     external_public_category_id = fields.Many2one(
+        string='External E-Commerce Category',
         comodel_name='integration.product.public.category.external',
         required=True,
         ondelete='cascade',

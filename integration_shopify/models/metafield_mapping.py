@@ -60,8 +60,8 @@ class Metafield(models.Model):
     ]
 
     integration_id = fields.Many2one(
+        string='E-Commerce Store',
         comodel_name='sale.integration',
-        string='Integration',
         ondelete='cascade',
     )
 

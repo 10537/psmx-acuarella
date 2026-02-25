@@ -83,45 +83,6 @@ class OdooIntegrationBase(TransactionCase):
         self.integration_product_public_category_mapping = self.env.ref(
             'integration.integration_product_public_category_mapping')
 
-        # Creating product ecommerce field
-        self.product_ecommerce_field_1 = self.env.ref('integration.product_ecommerce_field_1')
-        self.product_ecommerce_field_mapping_1 = self.env.ref(
-            'integration.product_ecommerce_field_mapping_1')
-
-        self.product_variant_ecommerce_field_1 = self.env.ref(
-            'integration.product_variant_ecommerce_field_1')
-        self.product_variant_ecommerce_field_mapping_1 = self.env.ref(
-            'integration.product_variant_ecommerce_field_mapping_1')
-
-        self.product_ecommerce_field_2 = self.env.ref('integration.product_ecommerce_field_2')
-        self.product_ecommerce_field_mapping_2 = self.env.ref(
-            'integration.product_ecommerce_field_mapping_2')
-
-        self.product_ecommerce_field_available_for_order = self.env.ref(
-            'integration.product_ecommerce_field_available_for_order')
-        self.product_ecommerce_field_mapping_available_for_order = self.env.ref(
-            'integration.product_ecommerce_field_mapping_available_for_order')
-
-        self.product_ecommerce_field_template_weight = self.env.ref(
-            'integration.product_ecommerce_field_template_weight')
-        self.product_ecommerce_field_mapping_template_weight = self.env.ref(
-            'integration.product_ecommerce_field_mapping_template_weight')
-
-        self.product_ecommerce_field_default_category = self.env.ref(
-            'integration.product_ecommerce_field_default_category')
-        self.product_ecommerce_field_mapping_default_category = self.env.ref(
-            'integration.product_ecommerce_field_mapping_default_category')
-
-        self.product_ecommerce_field_collections = self.env.ref(
-            'integration.product_ecommerce_field_collections')
-        self.product_ecommerce_field_mapping_collections = self.env.ref(
-            'integration.product_ecommerce_field_mapping_collections')
-
-        self.product_ecommerce_field_description = self.env.ref(
-            'integration.product_ecommerce_field_description')
-        self.product_ecommerce_field_mapping_description = self.env.ref(
-            'integration.product_ecommerce_field_mapping_description')
-
     def generate_product_data(self, *, name, image='can_of_cola.png', integration=False):
         return {
             'name': 'Test Product %s' % name,
@@ -155,7 +116,7 @@ class OdooIntegrationInit(OdooIntegrationBase):
             name=1,
             integration=self.integration_no_api_1,
         )
-        self.product_pt_1 = self.env['product.template'] \
+        self.product_pt_1 = self.env['product.template'].with_context(skip_product_export=True) \
             .with_user(self.integration_administrator) \
             .create(vals_product_pt_1)
 
@@ -163,7 +124,7 @@ class OdooIntegrationInit(OdooIntegrationBase):
             name=2,
             integration=self.integration_no_api_1,
         )
-        self.product_pt_2 = self.env['product.template'] \
+        self.product_pt_2 = self.env['product.template'].with_context(skip_product_export=True) \
             .with_user(self.integration_administrator) \
             .create(vals_product_pt_2)
 
@@ -173,7 +134,7 @@ class OdooIntegrationInit(OdooIntegrationBase):
             integration=self.integration_no_api_1,
         )
 
-        self.product_pp_1 = self.env['product.product'] \
+        self.product_pp_1 = self.env['product.product'].with_context(skip_product_export=True) \
             .with_user(self.integration_administrator) \
             .create(vals_product_pp_1)
 
@@ -181,7 +142,7 @@ class OdooIntegrationInit(OdooIntegrationBase):
             name='Variant_2',
             integration=self.integration_no_api_1,
         )
-        self.product_pp_2 = self.env['product.product'] \
+        self.product_pp_2 = self.env['product.product'].with_context(skip_product_export=True) \
             .with_user(self.integration_administrator) \
             .create(vals_product_pp_2)
 

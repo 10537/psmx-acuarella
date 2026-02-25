@@ -1,25 +1,28 @@
 # See LICENSE file for full copyright and licensing details.
 
-import json
-import re
 import logging
+import re
+import json
 
-from odoo import api, models, fields
-from odoo.tools.safe_eval import safe_eval, wrap_module
-from odoo.exceptions import ValidationError
-
+from odoo import api, models, fields, _
+from odoo.exceptions import ValidationError, UserError
+from odoo.tools.safe_eval import wrap_module
 from odoo.addons.base.models.ir_actions import LoggerProxy
+
+from ...tools import run_preprocessing_script, ExtractNode
+from ...exceptions import JsonMissedKey
+
 
 wrapped_json = wrap_module(json, ['loads', 'dumps'])
 wrapped_re = wrap_module(re, ['match', 'fullmatch', 'search', 'sub'])
 
-_logger = logging.getLogger(__name__)
-
-DEFAULT_CODE = """# On tab Help you can find the available variables.
+SCRIPT_PATTERN_ORDER = """# On tab Help you can find the available variables.
 # Here write your Python code.
 
 
 """
+
+_logger = logging.getLogger(__name__)
 
 
 class ExternalOrderFieldMapping(models.Model):
@@ -58,12 +61,12 @@ class ExternalOrderFieldMapping(models.Model):
     active = fields.Boolean(
         string='Active',
         default=True,
-        help="Indicates if the mapping is active.",
+        help='Indicates if the mapping is active.',
     )
 
     integration_id = fields.Many2one(
         comodel_name='sale.integration',
-        string='Integration',
+        string='E-Commerce Store',
         required=True,
     )
 
@@ -74,23 +77,27 @@ class ExternalOrderFieldMapping(models.Model):
     )
 
     odoo_order_field_id = fields.Many2one(
-        comodel_name='ir.model.fields',
         string='Odoo Sales Order Field',
+        comodel_name='ir.model.fields',
         domain="[('model_id.model', '=', 'sale.order')]",
     )
 
     odoo_picking_field_id = fields.Many2one(
-        comodel_name='ir.model.fields',
         string='Odoo Transfer Field',
+        comodel_name='ir.model.fields',
         domain="[('model_id.model', '=', 'stock.picking')]",
     )
 
-    preprocess_script = fields.Text(
+    script = fields.Text(
         string='Preprocess Script',
         readonly=False,
-        default=lambda self: self._default_preprocess_script(),
-        help="Python script to preprocess the value before storing it in Odoo.",
+        default=SCRIPT_PATTERN_ORDER,
+        help='Python script to preprocess the value before storing it in Odoo.',
     )
+
+    def get_script(self):
+        lines = self.script.splitlines()
+        return '\n'.join(line for line in lines if not line.strip().startswith('#')).strip()
 
     @api.constrains('odoo_order_field_id')
     def _check_unique_order_field(self):
@@ -101,7 +108,7 @@ class ExternalOrderFieldMapping(models.Model):
                     ('odoo_order_field_id', '=', rec.odoo_order_field_id.id),
                 ]
                 if self.search_count(domain) > 1:
-                    raise ValidationError('Sales Order Field must be unique within the same integration.')
+                    raise ValidationError(_('Sales Order Field must be unique within the same integration.'))
 
     @api.constrains('odoo_picking_field_id')
     def _check_unique_picking_field(self):
@@ -112,127 +119,87 @@ class ExternalOrderFieldMapping(models.Model):
                     ('odoo_picking_field_id', '=', rec.odoo_picking_field_id.id),
                 ]
                 if self.search_count(domain) > 1:
-                    raise ValidationError('Transfer Field must be unique within the same integration.')
+                    raise ValidationError(_('Transfer Field must be unique within the same integration.'))
 
     @api.constrains('external_order_field')
     def _check_external_order_field_format(self):
-        # Support only letters, digits, underscores, dots
+        # Support segments: field names (a-zA-Z0-9_) OR numeric indexes (0,1,2,...), separated by dots
+        pattern = re.compile(r'^order(\.(?:[a-zA-Z0-9_]+|\d+))*$')
+
         for record in self:
-            if record.external_order_field:
-                if not re.fullmatch(r'order(\.[a-zA-Z0-9_]+)*', record.external_order_field):
-                    raise ValidationError(
-                        "External Field can only contain letters, numbers, underscores, and dots.\n\n"
-                        "Examples:\n- order.attribute_id\n- order.product_id\n- order\n- order.id"
-                    )
+            field = (record.external_order_field or '').strip()
+            if not field:
+                raise ValidationError(_('External Order Field cannot be empty.'))
 
-    @api.model
-    def _get_eval_context(self):
-        """Builds the execution context for safe_eval."""
-        return {
-            'integration': self.integration_id,
-            'env': self.env,
-            'json': wrapped_json,
-            're': wrapped_re,
-            'logger': LoggerProxy,
-        }
+            if not pattern.fullmatch(field):
+                raise ValidationError(_(
+                    'External Field can only contain letters, numbers, underscores, dots, '
+                    'and numeric index segments.\n\n'
+                    'Examples:\n'
+                    '- order\n'
+                    '- order.id\n'
+                    '- order.attribute_id\n'
+                    '- order.items.1\n\n'
+                    'Rules:\n'
+                    '- path starts with "order"\n'
+                    '- segments separated by dots\n'
+                    '- segment is either a field name (letters/digits/underscore) or an index (digits)'
+                ))
 
-    @staticmethod
-    def parse_field_path(data: dict, path: str, show_error: bool = False) -> str:
-        """Safely extracts a nested value from a dict using a dot-notation path."""
-        def _warn(title: str, message: str):
-            if show_error:
-                return f'[{title}] {message}'
-            _logger.warning(f'[{title}] {message}')
-            return ''
+    def calculate_order_import_value(self, external_order_data, raise_error: bool = True) -> str:
+        """Calculate the value to import into Odoo for this mapping field."""
+        self.ensure_one()
 
-        if not path:
-            return data
+        path = (self.external_order_field or '').strip()
+        if not path or not path.startswith('order'):
+            _logger.warning(f'Invalid Path: Path must start with "order", got "{path}"')
+            if raise_error:
+                raise UserError(_('Invalid Path: Path must start with "order", got "%s"') % path)
+            return None
 
-        parts = path.split('.')
-        if parts[0] != 'order':
-            return _warn(
-                'Invalid Path',
-                f'Path must start with "order", got "{parts[0]}"'
-            )
+        # PrestaShop wraps the order data inside an 'order' key
+        if 'order' in external_order_data:
+            external_order_data = external_order_data['order']
 
-        current = data
-        for part in parts[1:]:
-            if isinstance(current, dict):
-                if part not in current:
-                    return _warn(
-                        'Path Error',
-                        f'Failed to extract "{part}" from path "{path}":\n'
-                        f'key not found in dict — current: {str(current)}'
-                    )
-                current = current.get(part)
-            else:
-                return _warn(
-                    'Path Error',
-                    f'Failed to extract "{part}" from path "{path}":\n'
-                    f'expected dict, got {type(current).__name__} — value: {repr(current)}'
-                )
-
-        return current
-
-    def _default_preprocess_script(self) -> str:
-        return DEFAULT_CODE
-
-    @staticmethod
-    def _run_preprocessing_script(preprocess_script: str, context: dict, raise_error: bool = False) -> str:
-        """
-        Executes the preprocessing script in a controlled environment.
-        """
         try:
-            safe_eval(preprocess_script.strip(), context, mode='exec', nocopy=True)
+            value = ExtractNode.extract_raw({'order': external_order_data}, path, '', raise_error=raise_error)
+
+        except JsonMissedKey as e:
+            _logger.warning(f'Extraction Warning: Missing key for path "{path}": {e}')
+            if raise_error:
+                raise UserError(_('Extraction Warning: Missing key for path "%s": %s') % (path, e))
+            return None
+
         except Exception as e:
+            _logger.warning(f'Extraction Error: Error extracting value for path "{path}": {e}')
             if raise_error:
-                raise ValidationError(f'Preprocess script execution failed: {e}')
-            _logger.warning('Preprocess script execution failed: %s', e)
-            return ''
+                raise UserError(_('Extraction Error: Error extracting value for path "%s": %s') % (path, e))
+            return None
 
-        if 'value' not in context:
-            if raise_error:
-                raise ValidationError(
-                    'Preprocess script did not assign a variable named "value".'
-                )
-            _logger.warning("Preprocess script did not assign a variable named 'value'.")
-            return ''
-
-        try:
-            return context['value']
-        except (TypeError, ValueError) as e:
-            if raise_error:
-                raise ValidationError(f'Failed to serialize value in preprocess script: {e}')
-            _logger.warning('Failed to serialize value in preprocess script: %s', e)
-            return ''
-
-    def calculate_value(self, order_data: dict, show_error: bool = False) -> str:
-        """
-        Preprocess the value before storing it in Odoo.
-        """
-        value = self.parse_field_path(order_data, self.external_order_field, show_error=show_error)
-        if not self.preprocess_script:
+        script = self.get_script()
+        if not script:
             return value
 
-        # Create a local context for the script execution
-        local_context = self._get_eval_context()
-        local_context['value'] = value
-        local_context['order'] = order_data
+        ctx = {
+            'order': external_order_data,
+            'value': value,
+            'env': self.env,
+            're': wrapped_re,
+            'json': wrapped_json,
+            'logger': LoggerProxy,
+            'integration': self.integration_id,
 
-        return self._run_preprocessing_script(self.preprocess_script.strip(), local_context, raise_error=show_error)
+        }
+
+        return run_preprocessing_script(script, ctx, raise_error=raise_error)
 
     def action_edit_preprocessing_script(self):
         """
         Open a new window to edit the preprocess script.
         """
         self.ensure_one()
-        wizard = self.env['integration.order.field.mapping.editor.wizard'].create({'mapping_field_id': self.id})
 
-        return {
-            'type': 'ir.actions.act_window',
-            'name': 'Write Pre-processing Script',
-            'res_model': 'integration.order.field.mapping.editor.wizard',
-            'res_id': wizard.id,
-            'target': 'new',
-            'view_mode': 'form',
-        }
+        wizard = self.env['integration.order.field.mapping.editor.wizard'] \
+            .create({'mapping_field_id': self.id})
+
+        return wizard.open_form()

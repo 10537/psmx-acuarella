@@ -14,7 +14,6 @@ from odoo.exceptions import UserError, ValidationError
 
 from .sale_integration import DATETIME_FORMAT
 from .auto_workflow.integration_workflow_pipeline import SKIP, TO_DO
-from .external.integration_sale_order_payment_method_external import INV_VALIDATED
 from ...integration.exceptions import ApiImportError
 
 
@@ -46,7 +45,11 @@ def reset_next_value_if_not_previous(task_list):
 
 
 def _prepare_integration_dashboard_condition(start_date, end_date, integration_ids):
-    query = 'so.date_order >= %s'
+    # Only confirmed orders
+    query = 'so.state = \'sale\''
+
+    # Date range conditions
+    query += ' AND so.date_order >= %s'
     condition_params = [start_date]
 
     end_date_dt = datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1)
@@ -54,6 +57,7 @@ def _prepare_integration_dashboard_condition(start_date, end_date, integration_i
     query += ' AND so.date_order < %s'
     condition_params.append(end_date_str)
 
+    # Imported from specific stores
     query += ' AND so.integration_id IN %s'
     condition_params.append(tuple(integration_ids))
 
@@ -82,15 +86,6 @@ class SaleOrder(models.Model):
         readonly=True,
         store=True,
         help='This is the reference of the order in the E-Commerce System.',
-    )
-
-    external_tag_ids = fields.Many2many(
-        string='External Tags',
-        comodel_name='external.integration.tag',
-        relation='external_integration_tag_sale_order_rel',
-        column1='sale_order_id',
-        column2='external_integration_tag_id',
-        copy=False,
     )
 
     external_payment_ids = fields.One2many(
@@ -241,7 +236,7 @@ class SaleOrder(models.Model):
         for order in self:
             if order.is_total_amount_difference:
                 order.total_amount_difference_error_message = error_message % (
-                    self.integration_amount_total, self.amount_total)
+                    order.integration_amount_total, order.amount_total)
             else:
                 order.total_amount_difference_error_message = ''
 
@@ -348,7 +343,7 @@ class SaleOrder(models.Model):
                 if not integration:
                     continue
 
-                if not integration.job_enabled('export_sale_order_status'):
+                if not integration.is_sale_order_status_export_enabled:
                     continue
 
                 job_kwargs = self._job_kwargs_export_sale_order_status(order)
@@ -413,14 +408,11 @@ class SaleOrder(models.Model):
 
         # Trigger export of inventory when specific integration settings are enabled
         # This export aims to synchronize the inventory after order cancellation
-        if self.integration_id.export_inventory_job_enabled:
+        if self.integration_id.is_real_time_inventory_export_enabled:
             product_ids = self.mapped('order_line.product_id')
 
             # Filter out products that should not be synchronized
-            product_ids = product_ids.filtered(
-                lambda x: x.is_consumable_storable
-                and not x.exclude_from_synchronization_stock
-            )
+            product_ids = product_ids.filtered(lambda x: x.integration_should_export_inventory)
 
             if product_ids:
                 product_ids.export_inventory_by_jobs(self.integration_id, cron_operation=False)
@@ -441,7 +433,7 @@ class SaleOrder(models.Model):
 
         if self.payment_method_id:
             payment_method_external = self.payment_method_id.to_external_record(self.integration_id)
-            action_after_validation = payment_method_external.send_payment_status_when == INV_VALIDATED
+            action_after_validation = payment_method_external.send_when_invoice_is_validated
 
             if action_after_validation and all(x.invoice_is_posted for x in self.actual_invoice_ids):
                 _logger.info(
@@ -456,9 +448,23 @@ class SaleOrder(models.Model):
         if not self.integration_id.run_action_on_so_invoice_status:
             return None
 
-        action_after_paid = self.order_is_fully_paid or self._context.get('force_export_paid_status')
+        force_export_paid_status = self.env.context.get('force_export_paid_status')
+        action_after_paid = self.order_is_fully_paid or force_export_paid_status
 
         if self.order_is_invoiced and action_after_paid:
+
+            # 1. A case when the paid-order-hook was called by force from validate-invoice-order-hook method
+            if force_export_paid_status:
+                return self._perform_method_by_name(f'_{self.type_api}_paid_order')
+
+            if self.payment_method_id:
+                payment_method_external = self.payment_method_id.to_external_record(self.integration_id)
+
+                # 2. A case when the paid-order-hook already was called on the validate-invoice-order-hook method
+                if payment_method_external.send_when_invoice_is_validated:
+                    return None
+
+            # 3. Just a common case when the run_action_on_so_invoice_status property is True
             return self._perform_method_by_name(f'_{self.type_api}_paid_order')
 
         return None
@@ -474,7 +480,7 @@ class SaleOrder(models.Model):
         if not integration:
             return False
 
-        if not integration.job_enabled('export_tracking'):
+        if not integration.is_order_tracking_export_enabled:
             return False
 
         pickings = self.picking_ids._filter_pickings()
@@ -510,7 +516,6 @@ class SaleOrder(models.Model):
 
     def _prepare_vals_for_sale_order_status(self):
         return {
-            'order_id': self.to_external(self.integration_id),
             'status': self.sub_status_id.to_external(self.integration_id),
             'delivery_date': self.get_max_delivery_date(),
         }
@@ -559,11 +564,11 @@ class SaleOrder(models.Model):
 
         if self.order_is_confirmed:
             # 4.1 Apply fulfillments
-            self._integration_validate_order_adds()
+            self._integration_apply_external_fulfillments()
 
             # 4.2 Apply payments
             if self.is_order_invoices_posted and not self.order_is_fully_paid:
-                self._integration_validate_invoice_adds()
+                self._integration_apply_external_payments()
 
         return external_data
 
@@ -650,7 +655,7 @@ class SaleOrder(models.Model):
     def _job_kwargs_export_sale_order_status(self, order):
         return {
             'priority': 10,
-            'identity_key': f'export_sale_order_status-{self.integration_id.id}-{order.id}',
+            'identity_key': f'export_sale_order_status-{self.integration_id.id}-{order.id}-{order.sub_status_id.id}',
             'description': (
                 f'{self.integration_id.name}: Export Sale Order Status '
                 f'[{order.name}] ({order.id}). Status: {order.sub_status_id.name}'
@@ -771,16 +776,9 @@ class SaleOrder(models.Model):
         self.action_confirm()
 
         if self.order_is_confirmed:
-            self._integration_validate_order_adds()
             return True, _('%s (id=%s) [%s]: confirmed successfully.') % args
 
         return False, _('%s (id=%s) [%s]: order confirmation error.') % args
-
-    def _integration_validate_order_adds(self):
-        if self.integration_id.is_integration_shopify or self.integration_id.is_integration_magento_two:  # NOQA
-            if self.integration_id.apply_external_fulfillments:
-                for record in self.external_fulfillment_ids.filtered(lambda x: x.is_ecommerce_ok and not x.is_done):
-                    record.validate()
 
     def _integration_validate_picking(self):
         _logger.info('Run integration auto-workflow validate_picking: %s', self)
@@ -820,13 +818,11 @@ class SaleOrder(models.Model):
 
         invoices = self.actual_invoice_ids.filtered(lambda x: x.state == 'draft')
         if not invoices:
-            self._integration_validate_invoice_adds()
             return True, _('%s (id=%s) [%s]: there are no invoices awaiting validation.') % args
 
         invoices.with_company(self.company_id).action_post()
 
         if self.is_order_invoices_posted:
-            self._integration_validate_invoice_adds()
             return True, _('%s (id=%s) [%s]: validated invoices successfully.') % args
 
         return False, _('%s (id=%s) [%s]: invoices validation failed.') % args
@@ -854,12 +850,8 @@ class SaleOrder(models.Model):
             action_context = action['context']
 
             wizard = self.env['account.move.send.wizard'] \
-                .with_context(
-                    **action_context,
-                ) \
-                .create({
-                    'sending_methods': ['email'],
-                })
+                .with_context(**action_context) \
+                .create({'sending_methods': ['email']})
 
             try:
                 wizard.action_send_and_print()
@@ -878,18 +870,6 @@ class SaleOrder(models.Model):
 
         _logger.error('[Integration]: Failed to send invoices for order %s (id=%s)', self.name, self.id)
         return False, _('Failed to send invoices: %s') % ', '.join(errors)
-
-    def _integration_validate_invoice_adds(self):
-        if self.integration_id.type_api in ('shopify', 'prestashop'):
-            if self.integration_id.apply_external_payments:
-
-                payments = self.external_payment_ids.filtered(lambda x: x.is_ecommerce_ok and not x.is_done)
-
-                if payments:
-                    self.external_payment_ids._raise_if_refund_found()
-
-                    for payment in payments:
-                        payment.validate()
 
     def _integration_register_payment(self):
         _logger.info('Run integration auto-workflow register_payment: %s', self)
@@ -987,7 +967,7 @@ class SaleOrder(models.Model):
         message = ''
         data = []
 
-        if self.state not in ('sale', 'done'):
+        if self.state != 'sale':
             message = f'Order {self.display_name} is not confirmed yet.'
             return error_code, message, data
 
@@ -1063,11 +1043,16 @@ class SaleOrder(models.Model):
             'access_token': access_token,
         })
 
-        base_url = self.env['ir.config_parameter'].get_param('web.base.url')
+        base_url = self.integration_id.get_base_url_config()
+
+        # Get invoice numbers from all posted documents
+        invoice_numbers = posted_documents.mapped('name')
+        invoice_number = ', '.join(invoice_numbers) if invoice_numbers else ''
 
         data.append({
             'name': attachment.name,
             'link': f'{base_url}/web/content/{attachment.id}?download=True&access_token={access_token}',
+            'invoice_number': invoice_number,
         })
 
         return success_code, 'PDF document successfully generated.', data
@@ -1130,6 +1115,7 @@ class SaleOrder(models.Model):
                     FROM sale_order so
                     WHERE {condition}
                 )
+                AND so.state = 'sale'
                 AND so.date_order < %s
             """
             self.env.cr.execute(repeat_customers_query, condition_params + [start_date])
@@ -1673,7 +1659,7 @@ class SaleOrder(models.Model):
         }
 
     def _get_dashboard_user_properties(self):
-        user_id = self._context.get('uid') or SUPERUSER_ID
+        user_id = self.env.context.get('uid') or SUPERUSER_ID
         user = self.sudo().env['res.users'].browse(user_id)
 
         company = user.company_id
@@ -1709,10 +1695,52 @@ class SaleOrder(models.Model):
 
         for mapping in mappings:
             field_name = mapping.odoo_picking_field_id.name
-            value = mapping.calculate_value(order_data)
+            value = mapping.calculate_order_import_value(order_data, raise_error=False)
+
             if value is not None:
                 values[field_name] = value
 
         if values:
             self.picking_ids.write(values)
+
+        # Validate external fulfillments if the integration supports it
+        self._integration_apply_external_fulfillments()
+
         return True
+
+    def _integration_apply_external_fulfillments(self):
+        self.ensure_one()
+
+        integration = self.integration_id
+        if integration and integration.apply_external_fulfillments:
+            if not (integration.is_integration_shopify or integration.is_integration_magento_two):
+                _logger.warning(
+                    _('External fulfillments are not not supported for this integration: %s (%s)')
+                    % (integration.name, integration.type_api)
+                )
+                return
+
+            for record in self.external_fulfillment_ids.filtered(lambda x: x.is_ecommerce_ok and not x.is_done):
+                record.validate()
+
+    def _integration_apply_external_payments(self):
+        self.ensure_one()
+
+        integration = self.integration_id
+        if integration and integration.apply_external_payments:
+            payments = self.external_payment_ids.filtered(lambda x: x.is_ecommerce_ok and not x.is_done)
+
+            if payments:
+                self.external_payment_ids._raise_if_refund_found()
+
+                for payment in payments:
+                    payment.validate()
+
+    def action_open_order_in_external_system(self):
+        """
+        Open the order in the external system.
+        """
+        if not self.integration_id:
+            return
+
+        return self.related_input_files.action_open_store_order()

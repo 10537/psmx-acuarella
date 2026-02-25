@@ -2,7 +2,7 @@
 
 {
     'name': 'Odoo E-Commerce Connector Core',
-    'version': '18.0.1.18.2',
+    'version': '18.0.2.0.0',
     'category': 'Sales',
     'author': 'VentorTech',
     'website': 'https://ventor.tech',
@@ -21,6 +21,7 @@ inventory, customers & more.''',
         'mrp',
         'sale',
         'stock_delivery',
+        'phone_validation',
         'queue_job',
     ],
     'data': [
@@ -38,6 +39,7 @@ inventory, customers & more.''',
         'data/product_ecommerce_fields.xml',
         'data/mail_template_data.xml',
         'data/res_config_data.xml',
+        'data/integration_import_entity_data.xml',
 
         # Wizard
         'wizard/import_customers_wizard.xml',
@@ -52,6 +54,8 @@ inventory, customers & more.''',
         'wizard/integration_installation_wizard.xml',
         'wizard/integration_configuration_wizard.xml',
         'wizard/integration_order_field_mapping_editor_wizard.xml',
+        'wizard/integration_import_wizard.xml',
+        'wizard/product_ecommerce_field_test_wizard.xml',
 
         # Views
         'views/sale_integration.xml',
@@ -68,13 +72,15 @@ inventory, customers & more.''',
         'views/product_feature_views.xml',
         'views/product_feature_value_views.xml',
         'views/product_attribute_views.xml',
-        'views/queue_job.xml',
+        'views/queue_job_views.xml',
         'views/job_log_views.xml',
         'views/res_partner_views.xml',
         'views/res_config_settings_views.xml',
+        'views/res_users_view.xml',
         'views/account_tax_views.xml',
         'views/account_move_views.xml',
         'views/account_payment_views.xml',
+        'views/integration_logging_views.xml',
 
         # External
         'views/external/integration_account_tax_group_external_views.xml',
@@ -97,7 +103,6 @@ inventory, customers & more.''',
         'views/external/integration_product_pricelist_external_views.xml',
         'views/external/integration_product_pricelist_item_external_views.xml',
         'views/external/integration_stock_location_external_views.xml',
-        'views/external/external_integration_tag_views.xml',
         'views/external/external_order_transaction_views.xml',
         'views/external/external_order_fulfillment_views.xml',
         'views/external/integration_product_image_external_views.xml',
@@ -140,12 +145,20 @@ inventory, customers & more.''',
     ],
     'assets': {
         'web.assets_backend': [
+            # Styles
             'integration/static/src/scss/styles.scss',
+            # Views
             'integration/static/src/views/*/*.js',
             'integration/static/src/views/*/*.xml',
+            # Fields
+            'integration/static/src/fields/*.js',
+            'integration/static/src/fields/*.xml',
+            # Components
             'integration/static/src/components/*/*.js',
             'integration/static/src/components/*/*.css',
             'integration/static/src/components/*/*.xml',
+            # Errors
+            'integration/static/src/core/errors/error_dialogs.js',
             # Dashboard
             'integration/static/src/dashboard/css/dashboard.css',
             'integration/static/src/dashboard/xml/templates.xml',

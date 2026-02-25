@@ -28,6 +28,7 @@ class StockPicking(models.Model):
     tracking_exported = fields.Boolean(
         string='Is Tracking Exported?',
         default=False,
+        copy=False,
         help='This flag allows us to define if tracking code for this picking was exported '
              'for external integration. It helps to avoid sending same tracking number twice. '
              'Basically we need this flag, cause different carriers have different type of '
@@ -73,7 +74,7 @@ class StockPicking(models.Model):
         if not integration:
             return False
 
-        if not integration.job_enabled('export_tracking'):
+        if not integration.is_order_tracking_export_enabled:
             return False
 
         picking = self._filter_pickings()
@@ -351,15 +352,15 @@ class StockPicking(models.Model):
 
         return self.with_context(**PKG_CONTEXT).button_validate()
 
-    def _check_for_fulfill(self, lines):
+    def _check_for_fulfill(self, lines: models.Model):  # lines: external.order.fulfillment.line
         return all(self._check_qty_availability(x.external_str_id, x.quantity) for x in lines)
 
-    def _check_qty_availability(self, line_id, qty):
+    def _check_qty_availability(self, line_id: str, qty: int):
         moves = self._get_moves_by_external_line(line_id)
         order_line = moves.mapped('sale_line_id')
         return any((x.qty_to_deliver >= qty) for x in order_line)
 
-    def _get_moves_by_external_line(self, line_id):
+    def _get_moves_by_external_line(self, line_id: str):
         moves = self.move_ids.filtered(
             lambda x: x.state not in ('done', 'cancel')
             and x.integration_external_id == line_id

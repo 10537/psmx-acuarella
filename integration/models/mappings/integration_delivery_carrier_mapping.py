@@ -10,11 +10,13 @@ class IntegrationDeliveryCarrierMapping(models.Model):
     _mapping_fields = ('carrier_id', 'external_carrier_id')
 
     carrier_id = fields.Many2one(
+        string='Odoo Delivery Carrier',
         comodel_name='delivery.carrier',
         ondelete='set null',
     )
 
     external_carrier_id = fields.Many2one(
+        string='External Delivery Carrier',
         comodel_name='integration.delivery.carrier.external',
         required=True,
         ondelete='cascade',

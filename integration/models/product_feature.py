@@ -27,7 +27,7 @@ class ProductFeature(models.Model):
         self.ensure_one()
 
         return {
-            'name': integration.convert_translated_field_to_integration_format(self, 'name'),
+            'name': self.convert_field_translations_to_external(integration.id, 'name'),
         }
 
     def _get_next_sequence(self):

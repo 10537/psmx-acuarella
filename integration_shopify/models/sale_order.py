@@ -56,6 +56,16 @@ class SaleOrder(models.Model):
         copy=False,
     )
 
+    external_tag_ids = fields.Many2many(
+        string='External Tags',
+        comodel_name='external.integration.tag',
+        relation='external_integration_tag_sale_order_rel',
+        column1='sale_order_id',
+        column2='external_integration_tag_id',
+        domain='[("ttype", "=", "order")]',
+        copy=False,
+    )
+
     def _shopify_cancel_order(self, *args, **kw):
         # from _perform_method_by_name calling
         _logger.info('SaleOrder _shopify_cancel_order(). Not implemented.')
@@ -72,15 +82,6 @@ class SaleOrder(models.Model):
 
         status = self.env['sale.order.sub.status'].from_external(self.integration_id, 'paid')
         self.sub_status_id = status.id
-
-    def _prepare_vals_for_sale_order_status(self):
-        res = super(SaleOrder, self)._prepare_vals_for_sale_order_status()
-
-        if self.integration_id.is_shopify():
-            res['amount'] = str(self.amount_total)
-            res['currency'] = self.currency_id.name
-
-        return res
 
     @api.depends('order_risk_ids')
     def _compute_is_risky_sale(self):
@@ -102,31 +103,49 @@ class SaleOrder(models.Model):
         # Perform the common logic in the super() method
         res = super(SaleOrder, self)._adjust_integration_external_data(external_data)
 
-        if not self.integration_id.is_shopify():
+        if not self.integration_id.is_integration_shopify:
             return res
 
         external_order_id = self.external_order_name
-
         adapter = self.integration_id.adapter
+
+        order = adapter.gql.Order.set(id=external_order_id)
+        order.update_props(
+            use_customer_currency=adapter._settings['use_customer_currency'],
+        )
+        read_order = False
+
+        def _read():
+            nonlocal read_order
+
+            if not read_order:
+                order.read()
+                read_order = True
+
         if 'order_risks' not in external_data:
             # 1. Fetch Order Risks
-            order_risks = adapter.fetch_order_risks(external_order_id)
+            _read()
+            order_risks = order.parse_order_risks()
             external_data['order_risks'] = order_risks
 
         if 'payment_transactions' not in external_data:
             # 2. Fetch Order Payments
-            payment_txns = adapter.fetch_order_transactions(external_order_id)
+            _read()
+            payment_txns = order.parse_payment_transactions()
             external_data['payment_transactions'] = payment_txns
 
         if 'order_fulfillments' not in external_data:
             # 3. Fetch Order Fulfillments
-            order_fulfillments = adapter.fetch_order_fulfillments(external_order_id)
+            _read()
+            order_fulfillments = order.parse_fulfillments()
             external_data['order_fulfillments'] = order_fulfillments
 
         return external_data
 
     def _apply_values_from_external(self, external_data: dict) -> dict:
-        if self.integration_id.is_shopify():
+        integration = self.integration_id
+
+        if integration.is_integration_shopify:
             vals = dict()
             # 0. State update --> partially updated in the super() method
             if external_data.get('integration_workflow_states'):
@@ -134,20 +153,17 @@ class SaleOrder(models.Model):
                 fulfillment_code = external_data['integration_workflow_states'][1]
 
                 sub_status_fulfillment = self.env['integration.sale.order.factory'] \
-                    ._get_order_sub_status(self.integration_id, fulfillment_code)
+                    ._get_order_sub_status(integration, fulfillment_code)
 
                 vals['shopify_fulfilment_status'] = sub_status_fulfillment.id
 
             # 1. Tags
             if external_data.get('external_tags'):
                 # 2. Update Tags
-                ExternalTag = self.env['external.integration.tag'].with_context(
-                    default_integration_id=self.integration_id.id,
-                )
-
-                tags = list()
+                tags = []
                 for tag_name in external_data['external_tags']:
-                    tag = ExternalTag._get_or_create_tag_from_name(tag_name)
+                    tag = self.env['external.integration.tag'] \
+                        ._get_or_create_external_tag(tag_name, 'order', integration_id=integration.id)
                     tags.append((4, tag.id, 0))
 
                 vals['external_tag_ids'] = tags
@@ -167,7 +183,7 @@ class SaleOrder(models.Model):
             # 3. Fulfillments
             if external_data.get('order_fulfillments'):
                 Fulfillment = self.env['external.order.fulfillment'] \
-                    .with_context(integration_id=self.integration_id.id)
+                    .with_context(integration_id=integration.id)
 
                 fulfillments = list()
                 for fulfill_data in external_data['order_fulfillments']:

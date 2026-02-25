@@ -5,7 +5,7 @@ from odoo.exceptions import UserError
 
 
 FIELDS_TO_EXPORT = [
-    'name', 'type_api', 'state', 'use_async',
+    'name', 'type_api', 'state',
     # The list of fields below is not complete. We avoid to export some fields because
     # - they can lead to errors when importing (i.e. x2many or x2one fields)
     # - they can lead to unwanted changes (i.e. run crons, update orders, etc.)
@@ -24,8 +24,8 @@ class ImportExportIntegrationWizard(models.TransientModel):
     _description = 'Import/Export Integration Wizard'
 
     integration_id = fields.Many2one(
+        string='E-Commerce Store',
         comodel_name='sale.integration',
-        string='Integration',
         default=lambda self: self.env.context.get('active_id'),
     )
 

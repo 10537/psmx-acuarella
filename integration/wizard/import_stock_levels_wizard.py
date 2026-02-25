@@ -9,8 +9,8 @@ class ImportStockLevelsWizard(models.TransientModel):
 
     integration_id = fields.Many2one(
         comodel_name='sale.integration',
-        string='Sale Integration',
-        default=lambda self: self._context.get('active_id'),
+        string='E-Commerce Store',
+        default=lambda self: self.env.context.get('active_id'),
         required=True,
     )
     company_id = fields.Many2one(

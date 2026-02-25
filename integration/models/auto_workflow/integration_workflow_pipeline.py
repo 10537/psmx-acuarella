@@ -55,6 +55,7 @@ class IntegrationWorkflowPipelineLine(models.Model):
         related='order_id.company_id',
     )
     integration_id = fields.Many2one(
+        string='E-Commerce Store',
         comodel_name='sale.integration',
         related='order_id.integration_id',
     )
@@ -69,7 +70,13 @@ class IntegrationWorkflowPipelineLine(models.Model):
 
     def _compute_name(self):
         for rec in self:
-            rec.name = ' '.join([x.capitalize() for x in rec.current_step_method.split('_')])
+            method_name = rec.current_step_method
+            try:
+                value = self.env['integration.sale.order.sub.status.external']._fields[method_name].string
+            except KeyError:
+                value = f'Workflow Method "{method_name}"'
+
+            rec.name = value
 
     @property
     def is_not_done(self):
@@ -337,7 +344,7 @@ class IntegrationWorkflowPipeline(models.Model):
         return dict(
             self=str(self),
             order_id=self.order_id.id,
-            integration_id=self.input_file_id.si_id.id,
+            integration_id=self._get_integration_id_for_job(),
             tasks=self._tasks_info(),
         )
 
@@ -422,7 +429,7 @@ class IntegrationWorkflowPipeline(models.Model):
         payment_method_external_id = pipeline_vals['payment_method_external_id']
         vals = {
             'sub_state_external_ids': [(4, x, 0) for x in sub_state_ids],
-            'skip_dispatch': self._context.get('default_skip_dispatch', False),
+            'skip_dispatch': self.env.context.get('default_skip_dispatch', False),
         }
         if payment_method_external_id:
             vals['payment_method_external_id'] = payment_method_external_id

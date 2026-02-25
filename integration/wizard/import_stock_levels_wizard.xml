@@ -57,6 +57,7 @@
 
         <record id="import_stock_levels_wizard_action" model="ir.actions.act_window">
             <field name="name">Import Stock Levels Wizard</field>
+            <field name="path">eci-import-stock-wizard</field>
             <field name="type">ir.actions.act_window</field>
             <field name="res_model">import.stock.levels.wizard</field>
             <field name="view_mode">form</field>

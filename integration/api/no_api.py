@@ -61,9 +61,6 @@ class NoAPIClient(AbsApiClient):
             'your Odoo partner for further details.'
         ) % 'https://support.ventor.tech/')
 
-    def check_connection(self):
-        return
-
     def get_api_resources(self):
         return
 
@@ -163,10 +160,10 @@ class NoAPIClient(AbsApiClient):
     def export_tracking(self, sale_order_id, tracking_data_list, **kw):
         return
 
-    def export_sale_order_status(self, order_id, status):
+    def send_sale_order_status(self, order_id, status):
         return
 
-    def get_product_for_import(self, product_code, import_images=False):
+    def get_product_for_import(self, *args, **kw):
         return
 
     def get_templates_and_products_for_validation_test(self, product_refs=None):
@@ -189,3 +186,15 @@ class NoAPIClient(AbsApiClient):
 
     def get_weight_uoms(self):
         return
+
+    def get_order_url(self, external_order_id):
+        raise NotImplementedError(_(
+            'This functionality is not yet implemented. Please contact our support team (%(support_url)s) or '
+            'your Odoo partner for further details.'
+        ) % 'https://support.ventor.tech/')
+
+    def get_product_url(self, external_product_code):
+        raise NotImplementedError(_(
+            'This functionality is not yet implemented. Please contact our support team (%(support_url)s) or '
+            'your Odoo partner for further details.'
+        ) % 'https://support.ventor.tech/')

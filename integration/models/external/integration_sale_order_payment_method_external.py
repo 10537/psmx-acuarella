@@ -35,6 +35,16 @@ class IntegrationSaleOrderPaymentMethodExternal(models.Model):
         help='Create Invoice in external system when in Odoo ...',
     )
 
+    @property
+    def send_when_invoice_is_paid(self):
+        self.ensure_one()
+        return self.send_payment_status_when == INV_PAID
+
+    @property
+    def send_when_invoice_is_validated(self):
+        self.ensure_one()
+        return self.send_payment_status_when == INV_VALIDATED
+
     def unlink(self):
         # Delete all odoo payment methods also
         if not self.env.context.get('skip_other_delete', False):
@@ -82,5 +92,4 @@ class IntegrationSaleOrderPaymentMethodExternal(models.Model):
                 '%s: No Payment Journal defined for Payment Method "%s". '
                 'Please, define it in menu "E-Commerce Integrations → Configuration → '
                 'Payment Methods" in the "Payment Journal" column.'
-                ) % (self.integration_id.name, self.name)
-            )
+            ) % (self.integration_id.name, self.name))

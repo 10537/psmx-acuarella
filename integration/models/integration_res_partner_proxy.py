@@ -1,11 +1,16 @@
 # See LICENSE file for full copyright and licensing details.
 
+import logging
+
 from typing import Any, Dict, List, Tuple
 
-from odoo import api, fields, models, registry
+from odoo import api, fields, models, registry, tools
 from odoo.tools import escape_psql
 
 from .sale_integration import SEARCH_CUSTOMER_FIELDS
+
+
+_logger = logging.getLogger(__name__)
 
 PROXY_FIELDS = [
     'pricelist_id',
@@ -23,6 +28,7 @@ PROXY_FIELDS = [
     'state',
     'state_code',
     'phone',
+    'phone_sanitized',
     'mobile',
     'other',
     'zip',
@@ -54,16 +60,21 @@ PARTNER_SEARCH_CRITERIA = [
     ('parent_id', '='),
     ('is_company', '='),
     ('type', '='),
+    ('company_id', 'in'),
+    ('phone_sanitized', '=ilike'),
 ]
 
 COMPANY_SEARCH_CRITERIA = [
     ('name', '=ilike'),
     ('is_company', '='),
+    ('company_id', 'in'),
 ]
 
 ADDRESS_SEARCH_CRITERIA = [
     ('name', '=ilike'),
     ('parent_id', '='),
+    ('company_id', 'in'),
+    ('phone_sanitized', '=ilike'),
 ]
 
 
@@ -103,12 +114,21 @@ class IntegrationResPartnerProxy(models.TransientModel):
     )
 
     integration_id = fields.Many2one(
-        string='Integration',
+        string='E-Commerce Store',
         comodel_name='sale.integration',
         related='factory_id.integration_id',
         help=(
             'The Sale integration associated with this proxy.'
         ),
+    )
+
+    company_id = fields.Many2one(
+        string='Company',
+        comodel_name='res.company',
+        related='integration_id.company_id',
+        store=True,
+        readonly=True,
+        help='Company context inherited from the integration.',
     )
 
     partner_id = fields.Many2one(
@@ -120,7 +140,7 @@ class IntegrationResPartnerProxy(models.TransientModel):
     )
 
     company_partner_id = fields.Many2one(
-        string='Company',
+        string='Company Contact',
         comodel_name='res.partner',
         help=(
             'Technical field for storing the current company.'
@@ -133,6 +153,7 @@ class IntegrationResPartnerProxy(models.TransientModel):
     person_name = fields.Char(string='Person Name', default='')
     email = fields.Char(string='Email', default='')
     phone = fields.Char(string='Phone', default='')
+    phone_sanitized = fields.Char(string='Phone Sanitized', default='')
     mobile = fields.Char(string='Mobile', default='')
     language = fields.Char(string='Language')
 
@@ -149,6 +170,10 @@ class IntegrationResPartnerProxy(models.TransientModel):
     state_code = fields.Char(string='State Code')
     other = fields.Char(string='Other')
     zip = fields.Char(string='Zip')
+
+    # ================================
+    # I. TECHNICAL / UTILITY METHODS
+    # ================================
 
     def get_proxy_fields(self) -> List:
         return PROXY_FIELDS
@@ -173,81 +198,239 @@ class IntegrationResPartnerProxy(models.TransientModel):
         """
         return ADDRESS_MATCH_SIMPLE_FIELDS + ADDRESS_MATCH_COMPLEX_FIELDS
 
-    def create_proxy(self, type_: str, factory_id: int, data: dict) -> models.Model:
+    def create_proxy(self, type_: str, integration_id: int, factory_id: int, data: dict) -> models.Model:
         """
         Create a proxy instance with cleaned values based on the provided data.
         Args:
             type_: The type of the proxy.
+            integration_id: The ID of the integration associated with the proxy.
             factory_id: The ID of the factory associated with the proxy.
             data : The input data dictionary.
         Returns:
             Recordset: The created proxy instance.
         """
-        data = self._prepare_data(type_, data)
+        if not isinstance(data, dict):
+            raise ValueError(f'Data should be a dictionary; "{type(data)}" specified.')
+        if type_ not in PROXY_TYPES:
+            raise ValueError(f'Invalid proxy type: {type_}')
 
-        # If no person name and email is provided, return an empty proxy
-        if not data.get('person_name') and not data.get('email'):
+        ctx = dict(self.env.context)
+        if type_ == 'customer':
+            ctx['type_'] = 'customer'
+
+        proxy_values = self.with_context(**ctx)._prepare_proxy_values(integration_id, data)
+
+        if not proxy_values or not self._validate_required_values(proxy_values):
             return self.env['integration.res.partner.proxy']
 
-        data['factory_id'] = factory_id
+        proxy_values['type'] = type_
+        proxy_values['factory_id'] = factory_id
 
-        return self.create([data])
+        vals = self._prepare_special_values(proxy_values, data)
 
-    def _prepare_data(self, type_: str, data: Dict) -> Dict:
-        """
-        Prepare data for creating an instance of the proxy class with cleaned values.
-        Args:
-            type_: The type of the proxy.
-            data: The input data dictionary.
-        Returns:
-            dict: A dictionary containing cleaned values for creating an instance of the proxy class
-        """
-        if type_ not in PROXY_TYPES:
-            raise ValueError(
-                f'Technical error: Invalid data type. Expected a dictionary, but got "{type(data).__name__}".\n'
-                'This issue may be caused by improper use of the method. Please ensure the input data '
-                'is correctly formatted.'
-            )
+        proxy = self.create(vals)
 
-        if not isinstance(data, dict):
-            raise ValueError(f'Data should be a dictionary; "{data}" specified.')
+        return proxy
 
-        # Remove 'type' key as it's no longer needed and remove keys with empty values
-        data.pop('type', None)
-        data = {k: v for k, v in data.items() if v not in ['', None, [], {}]}
-        if not data:
-            return {}
-
+    def _prepare_proxy_values(self, integration_id: int, data: dict) -> Dict:
+        """Prepare proxy values based on the provided data."""
         proxy_fields = self.get_proxy_fields()
-        prepared_data = {
-            'type': type_,
-            **self._clear_optional_fields_values(data, proxy_fields),
-        }
-
-        if type_ == 'customer':
-            prepared_data['external_id'] = data.get('id', '').strip()
-
-        return prepared_data
-
-    def _clear_optional_fields_values(self, data: Dict, field_names: List) -> Dict:
-        """
-        Retrieve optional string fields from data, stripping whitespace if present.
-        Args:
-            data: The input data dictionary.
-            field_names: A list of field names to retrieve from the data dictionary.
-        Returns:
-            dict: A dictionary containing optional string fields with whitespace stripped.
-        """
-        cleaned_data = dict()
+        vals = {}
 
         for key, value in data.items():
-            if key in field_names:
-                if isinstance(value, str):
-                    cleaned_data[key] = value.strip()
-                else:
-                    cleaned_data[key] = value
+            if key not in proxy_fields:
+                continue
 
-        return cleaned_data
+            # We skip empty values, but not `False`, because it is a valid value for Boolean fields.
+            if value in ['', None, [], {}]:
+                continue
+
+            prepared_value = self._prepare_proxy_value(key, value)
+            vals[key] = prepared_value
+
+        # Separate method for extra pre-processing (emails, phones)
+        if vals.get('email'):
+            vals['email'] = tools.email_normalize(vals['email']) or vals['email'].lower()
+
+        if vals.get('phone'):
+            # Format phone number using Odoo's built-in formatter
+            formatted_phone = self._proxy_phone_format(integration_id, vals['phone'], data)
+            if formatted_phone:
+                vals['phone_sanitized'] = formatted_phone
+
+        return vals
+
+    def _prepare_proxy_value(self, key: str, value: str) -> str:
+        """Prepare individual proxy value."""
+        if not isinstance(value, str):
+            return value
+
+        prepared_value = value.strip()
+
+        return prepared_value
+
+    def _validate_required_values(self, vals: dict) -> bool:
+        """Check if vals contains required values."""
+        return bool(vals.get('person_name', '') or vals.get('email', ''))
+
+    def _prepare_special_values(self, vals: dict, data: dict) -> dict:
+        """Process special fields that require additional handling."""
+        if vals.get('type') == 'customer':
+            vals['external_id'] = data.get('id', '').strip()
+
+        return vals
+
+    @api.model
+    def _find_odoo_country(self) -> models.Model:
+        """
+        Find the corresponding Odoo country based on the provided data.
+        """
+        country = self.env['res.country']
+
+        if self.country:
+            country = country.from_external(self.integration_id, self.country)
+        elif self.country_code:
+            country = self.env['res.country'].search([
+                ('code', '=ilike', self.country_code),
+            ], limit=1)
+
+        return country
+
+    def _find_odoo_state(self, odoo_country: models.Model) -> models.Model:
+        """
+        Find the corresponding Odoo state based on the provided country.
+        """
+        state = self.env['res.country.state']
+
+        if not state.search([('country_id', '=', odoo_country.id)]):
+            return state
+
+        if self.state:
+            state = state.from_external(self.integration_id, self.state)
+        elif self.state_code and odoo_country:
+            state = state.search([
+                ('country_id', '=', odoo_country.id),
+                ('code', '=ilike', self.state_code),
+            ], limit=1)
+
+        return state
+
+    def _get_integration_tag(self) -> models.Model:
+        """
+        Retrieve or create an integration tag for the current integration.
+        """
+        ResPartnerTag = self.env['res.partner.category']
+        main_tag = self.env.ref('integration.main_integration_tag', raise_if_not_found=False)
+        if not main_tag:
+            raise ValueError(
+                'Integration main tag "integration.main_integration_tag" is missing. Please install or restore it.'
+            )
+
+        tag = ResPartnerTag.search([
+            ('name', '=', self.integration_id.name),
+            ('parent_id', '=', main_tag.id),
+        ])
+
+        if not tag:
+            tag = ResPartnerTag.sudo().create({
+                'name': self.integration_id.name,
+                'parent_id': main_tag.id,
+            })
+
+        return tag
+
+    def _build_search_domain(self, search_criteria: List, values: Dict) -> List:
+        """
+        Build a search domain based on the provided search criteria and values.
+        """
+        domain = []
+        phone_search_criteria = []
+
+        for key, op in search_criteria:
+            value = values.get(key, '')
+
+            # Special case: email → search in both email and normalized_email
+            if key == 'email':
+                if value:
+                    if isinstance(value, str) and op == '=ilike':
+                        escaped_value = escape_psql(value)
+                        if not escaped_value:
+                            continue
+                    else:
+                        escaped_value = value
+
+                    domain.extend([
+                        '|',
+                        (key, op, escaped_value),
+                        ('email_normalized', '=', escaped_value)
+                    ])
+                continue
+
+            # Special case: phone / phone_sanitized → collect for combined OR search
+            if key in ('phone', 'phone_sanitized'):
+                if value:
+                    phone_search_criteria.append((key, op))
+                continue
+
+            # Special case: company_id → add False value
+            if key == 'company_id':
+                if value:
+                    domain.extend([(key, op, [value, False])])
+                continue
+
+            if value:
+                # Escape the value if the operator is 'ilike'
+                if isinstance(value, str) and op == '=ilike':
+                    value = escape_psql(value)
+                    if not value:
+                        continue
+
+                domain.append((key, op, value))
+            else:
+                # If there is no value, use the 'in' operator and an empty list for filtering
+                domain.append((key, 'in', ['', False]))
+
+        # Handle phone search criteria separately to combine conditions
+        if phone_search_criteria:
+            phone_search_domain = []
+            for key, op in phone_search_criteria:
+                phone_search_domain.append((key, op, values.get(key, '')))
+
+            if len(phone_search_domain) == 1:
+                domain.append(phone_search_domain[0])
+            else:
+                # Combine phone search criteria with OR operator
+                combined_phone_domain = ['|'] * (len(phone_search_domain) - 1) + phone_search_domain
+                domain.extend(combined_phone_domain)
+
+        return domain
+
+    def _proxy_phone_format(self, integration_id: int, phone_number: str, data: Dict) -> str:
+        """Format phone number using Odoo's built-in formatter."""
+        integration = self.env['sale.integration'].browse(integration_id)
+        country = self.env['res.country']
+
+        if data.get('country'):
+            country = country.from_external(integration, data['country'])
+        elif data.get('country_code'):
+            country = country.search([
+                ('code', '=ilike', data['country_code']),
+            ], limit=1)
+
+        if not country:
+            return phone_number
+
+        # Use Odoo's phone formatting utility - E.164 format
+        formatted = self._phone_format(
+            number=phone_number,
+            country=country,
+        )
+
+        return formatted or phone_number
+
+    # ================================
+    # II. MAIN BUSINESS LOGIC — CUSTOMER & PARTNER HANDLING
+    # ================================
 
     @api.model
     def get_customer(self, raise_error: bool = True) -> models.Model:
@@ -263,68 +446,170 @@ class IntegrationResPartnerProxy(models.TransientModel):
         partner = self.env['res.partner'].from_external(
             self.integration_id, self.external_id, raise_error,
         )
-
         self.partner_id = partner
-
         return partner
 
     @api.model
     def get_or_create_partner(self) -> models.Model:
         """
-        Get or create a partner.
+        Get or create a partner with priority to external mapping.
 
-        This method retrieves an existing partner based on the external ID,
-        or creates a new partner if no matching partner is found.
-        If a company name is provided, it also retrieves or creates the company
-        associated with the partner. Additionally, it links the external partner
-        if it exists, and checks for an existing mapping between the integration
-        and the external ID, creating one if none is found.
+        Priority order:
+        1. Try to use existing external mapping (if compatible)
+        2. If skip_individual_contacts + company_name: return company partner
+        3. Search for existing partner by domain
+        4. Create new partner
 
         Returns:
             models.Model: The retrieved or created partner instance.
         """
-        if self.company_name and self.integration_id.skip_individual_contacts:
-            company = self._get_or_create_company()
+        # Try to get compatible mapped partner
+        partner = self._get_compatible_mapped_partner()
+        if partner:
+            self.partner_id = partner
+            self._configure_partner(partner)
+            return partner
 
-            if self.external_id:
-                self._create_or_update_mapping()
-                company._link_external_partner(self.integration_id, self.external_id)
+        # Return for company-only mode
+        if self.integration_id.skip_individual_contacts and self.company_name:
+            return self._get_or_create_company_partner()
 
-            self.partner_id = company
+        # If no mapped partner, search or create new one
+        if not partner:
+            partner = self._search_or_create_partner()
 
-            return company
+        # Apply final configurations
+        self._configure_partner(partner)
 
+        return partner
+
+    def _get_compatible_mapped_partner(self) -> models.Model:
+        """
+        Get mapped partner only if it's compatible with current context.
+        """
+        if not self.external_id:
+            return self.env['res.partner']
+
+        mapped_partner = self.get_customer(False)
+        if not mapped_partner:
+            return self.env['res.partner']
+
+        if self._is_mapping_compatible(mapped_partner):
+            _logger.debug('Using mapped partner: %s', mapped_partner.display_name)
+            return mapped_partner
+
+        _logger.debug('Mapped partner incompatible, skipping mapping.')
+        return self.env['res.partner']
+
+    def _is_mapping_compatible(self, mapped_partner: models.Model) -> bool:
+        """
+        Check if mapped partner is compatible with current context.
+        """
+        skip_individual = self.integration_id.skip_individual_contacts
+
+        company = self.env['res.partner']
+        if self.company_name:
+            company = self._get_or_create_company_contact()
+
+        # Check company context
+        if mapped_partner.company_id and mapped_partner.company_id != self.company_id:
+            _logger.debug(
+                'Mapped partner %s belongs to company %s, but integration uses %s',
+                mapped_partner.display_name,
+                mapped_partner.company_id.name,
+                self.company_id.name
+            )
+            return False
+
+        # Mapped partner is company, but we're creating individual contact
+        if mapped_partner.is_company and not skip_individual:
+            return False
+
+        # Mapped partner is contact, but we're in company-only mode
+        if not mapped_partner.is_company and skip_individual:
+            return False
+
+        # Mapped partner has different parent company
+        if mapped_partner.parent_id and company:
+            if mapped_partner.parent_id != company:
+                return False
+
+            # Mapped partner has parent company, but integration uses different company
+            if mapped_partner.parent_id.company_id and mapped_partner.parent_id.company_id != self.company_id:
+                return False
+
+        # Mapped partner is different company than expected
+        if skip_individual and mapped_partner.is_company and company:
+            if mapped_partner != company:
+                return False
+
+            # Mapped partner has company, but integration uses different company
+            if mapped_partner.company_id and mapped_partner.company_id != self.company_id:
+                return False
+
+        return True
+
+    def _get_or_create_company_partner(self) -> models.Model:
+        """
+        Handle company-only partner creation/retrieval.
+        """
+        company = self._get_or_create_company_contact()
+
+        # Apply final configurations
+        self._configure_partner(company)
+
+        return company
+
+    def _search_or_create_partner(self) -> models.Model:
+        """
+        Search for existing partner or create new one.
+        """
         partner_vals = self._prepare_partner_vals()
         domain = self._collect_partner_search_domain(partner_vals)
 
-        partner = self.env['res.partner'].search(domain)
-        if len(partner) > 1:
-            partner = min(partner, key=lambda p: p.create_date)
+        partner = self.env['res.partner'].search(domain, order='create_date asc', limit=1)
 
         if partner:
-            # Update it with address fields if they are empty
             self._write_address_fields_if_empty(partner)
+            _logger.debug('Found existing partner: %s', partner.display_name)
         else:
             partner = self._create_partner(partner_vals)
+            _logger.debug('Created new partner: %s', partner.display_name)
 
-        # Get and set customer's pricelist from external system (if this feature is enabled)
-        if self.integration_id.pricelist_integration and self.pricelist_id:
-            pricelist = self.env['product.pricelist'].from_external(
-                self.integration_id,
-                self.pricelist_id,
-                raise_error=False,
-            )
-            if pricelist:
-                partner = partner.with_company(self.integration_id.company_id)
-                partner.property_product_pricelist = pricelist.id
+        return partner
 
+    def _configure_partner(self, partner: models.Model):
+        """
+        Apply final configuration to the partner.
+        """
         self.partner_id = partner
 
+        # Set up external mapping
         if self.external_id:
             self._create_or_update_mapping()
             partner._link_external_partner(self.integration_id, self.external_id)
 
-        return partner
+        # Set pricelist if enabled
+        self._set_partner_pricelist(partner)
+
+    def _set_partner_pricelist(self, partner: models.Model):
+        """
+        Set partner pricelist from external system if enabled.
+        """
+        if not (self.integration_id.pricelist_integration and self.pricelist_id):
+            return
+
+        pricelist = self.env['product.pricelist'].from_external(
+            self.integration_id,
+            self.pricelist_id,
+            raise_error=False,
+        )
+
+        if pricelist:
+            # If partner has a parent, apply pricelist to parent (company)
+            partner = partner.parent_id if partner.parent_id else partner
+            partner = partner.with_company(self.integration_id.company_id)
+            partner.property_product_pricelist = pricelist.id
 
     def _prepare_partner_vals(self) -> Dict:
         """
@@ -336,6 +621,7 @@ class IntegrationResPartnerProxy(models.TransientModel):
             'parent_id': False,
             'is_company': False,
             'type': 'contact',
+            'company_id': self.company_id.id,
         }
 
         if self.person_name:
@@ -347,6 +633,9 @@ class IntegrationResPartnerProxy(models.TransientModel):
         if self.phone:
             partner_vals['phone'] = self.phone
 
+        if self.phone_sanitized:
+            partner_vals['phone_sanitized'] = self.phone_sanitized
+
         if self.mobile:
             partner_vals['mobile'] = self.mobile
 
@@ -354,7 +643,7 @@ class IntegrationResPartnerProxy(models.TransientModel):
         # This step is important for maintaining data integrity and reducing duplicates,
         # as it ensures that the created address is associated with the correct company.
         if self.company_name:
-            company = self._get_or_create_company()
+            company = self._get_or_create_company_contact()
             partner_vals['parent_id'] = company.id
 
         # Since billing_address is written to partner,
@@ -397,15 +686,30 @@ class IntegrationResPartnerProxy(models.TransientModel):
             'name': self.company_name,
             'parent_id': False,
             'is_company': True,
+            'company_id': self.company_id.id,
         }
+
+        # Set company language if available
+        if self.language:
+            language = self.env['res.lang'].from_external(self.integration_id, self.language)
+
+            if language:
+                company_vals['lang'] = language.code
 
         # Add VAT field value if available
         company_vals.update(self._get_vat())
 
         return company_vals
 
+    def _get_or_create_company(self):
+        _logger.info(
+            'Deprecated _get_or_create_company method called. This method may be removed in next releases. '
+            'Please use _get_or_create_company_contact instead'
+        )
+        return self._get_or_create_company_contact()
+
     @api.model
-    def _get_or_create_company(self) -> models.Model:
+    def _get_or_create_company_contact(self) -> models.Model:
         """
         Get or create an Odoo company based on company values.
         If company exists, fills address fields only if all necessary fields are available.
@@ -418,22 +722,31 @@ class IntegrationResPartnerProxy(models.TransientModel):
         ResPartner = self.env['res.partner']
 
         company_vals = self._prepare_company_vals()
-
         domain = self._collect_company_search_domain(company_vals)
-        company = ResPartner.search(domain, limit=1)
 
+        company = ResPartner.search(domain, limit=1)
         if not company:
             # If company does not exist, create a new one
             tag = self._get_integration_tag()
             company_vals['category_id'] = [(6, 0, tag.ids)]
 
-            # The context key 'no_vat_validation' allows you to store/set a VAT number without
-            # doing validations.
+            vat_field = self.integration_id.customer_company_vat_field
+            vat_value = ''
+            # Odoo doesn't allow to ignore VAT validation during contact creation (no_vat_validation key in context)
+            # so we have to create contact without VAT and then assign it in separate write() call
+            if vat_field:
+                vat_value = company_vals.pop(vat_field.name, '')
+
+            # The context key 'no_vat_validation' allows you to store/set a VAT number without doing validations.
             ctx = dict(self.env.context)
-            if self.integration_id.ignore_vat_validation:
+            if self.integration_id.ignore_vat_validation and vat_field and vat_value:
                 ctx.update({'no_vat_validation': True})
 
             company = ResPartner.with_context(ctx).create(company_vals)
+
+            if vat_field and vat_value:
+                # Write the VAT number to the company
+                company.write({vat_field.name: vat_value})
 
         # Check if address fields are empty and if so, write the address fields to the company
         self._write_address_fields_if_empty(company)
@@ -493,7 +806,7 @@ class IntegrationResPartnerProxy(models.TransientModel):
             if self.integration_id.use_vat_only_company_search:
                 # If configured to use VAT only for company search, update search criteria
                 # accordingly
-                search_criteria = [(company_vat_field.name, '='), ('is_company', '=')]
+                search_criteria = [(company_vat_field.name, '='), ('is_company', '='), ('company_id', 'in')]
                 # After this line, no new search criteria should be added to 'search_criteria'.
                 return self._build_search_domain(search_criteria, company_vals)
             else:
@@ -514,10 +827,51 @@ class IntegrationResPartnerProxy(models.TransientModel):
         tag = self._get_integration_tag()
         partner_vals['category_id'] = [(6, 0, tag.ids)]
 
+        dni_field = self.integration_id.customer_personal_id_field
+        dni_value = ''
+        # Odoo doesn't allow to ignore VAT validation during contact creation (no_vat_validation key in context)
+        # so we have to create contact without VAT and then assign it in separate write() call
+        if dni_field:
+            dni_value = partner_vals.pop(dni_field.name, '')
+
+        # The context key 'no_vat_validation' allows you to store/set a VAT number without doing validations.
         ctx = {'res_partner_search_mode': 'customer'}
+        if self.integration_id.ignore_vat_validation:
+            ctx.update({'no_vat_validation': True})
+
         partner = self.env['res.partner'].with_context(**ctx).create(partner_vals)
 
+        # Write the DNI number to the contact
+        if dni_field and dni_value:
+            partner.write({dni_field.name: dni_value})
+
         return partner
+
+    def _write_address_fields_if_empty(self, partner: models.Model) -> None:
+        """
+        Write address fields to a contact if they are empty.
+        """
+        if all(not partner[field] for field in self.get_address_match_fields()):
+            company_address_vals = {}
+            address_match_fields = self.get_address_match_simple_fields()
+            for key in address_match_fields:
+                if hasattr(self, key):
+                    company_address_vals[key] = getattr(self, key)
+
+            # Add relative address fields to get a unique match
+            country = self._find_odoo_country()
+            if country:
+                company_address_vals['country_id'] = country.id
+
+            state = self._find_odoo_state(country)
+            if state:
+                company_address_vals['state_id'] = state.id
+
+            partner.write(company_address_vals)
+
+    # ================================
+    # III. ADDRESS HANDLING
+    # ================================
 
     def _has_address_changes(self, partner: models.Model, new_address_vals: Dict) -> bool:
         """
@@ -543,6 +897,9 @@ class IntegrationResPartnerProxy(models.TransientModel):
                 continue
 
             # Handle relational fields (Many2one, etc.)
+            if not hasattr(partner, field):
+                _logger.warning('Field %s does not exist on res.partner model.', field)
+                continue
             if isinstance(partner[field], models.Model):
                 if partner[field].id != new_value:
                     return True
@@ -567,28 +924,6 @@ class IntegrationResPartnerProxy(models.TransientModel):
 
         return False
 
-    def _write_address_fields_if_empty(self, partner: models.Model) -> None:
-        """
-        Write address fields to a contact if they are empty.
-        """
-        if all(not partner[field] for field in self.get_address_match_fields()):
-            company_address_vals = {}
-            address_match_fields = self.get_address_match_simple_fields()
-            for key in address_match_fields:
-                if hasattr(self, key):
-                    company_address_vals[key] = getattr(self, key)
-
-            # Add relative address fields to get a unique match
-            country = self._find_odoo_country()
-            if country:
-                company_address_vals['country_id'] = country.id
-
-            state = self._find_odoo_state(country)
-            if state:
-                company_address_vals['state_id'] = state.id
-
-            partner.write(company_address_vals)
-
     @api.model
     def _get_or_create_address(self) -> models.Model:
         """
@@ -597,6 +932,11 @@ class IntegrationResPartnerProxy(models.TransientModel):
             models.Model: The created or existing address partner record.
         """
         ResPartner = self.env['res.partner']
+
+        if not self.factory_id or not self.factory_id.customer_id:
+            _logger.warning('No customer set in factory. Cannot create address.')
+            return self.env['res.partner']
+
         partner = self.factory_id.customer_id
 
         address_vals = self._prepare_address_vals()
@@ -616,7 +956,7 @@ class IntegrationResPartnerProxy(models.TransientModel):
             if not self._has_address_changes(partner, address_vals):
                 return partner
         elif self.company_name:
-            company = self._get_or_create_company()
+            company = self._get_or_create_company_contact()
 
             # In most cases it makes no sense to do this check because name in company contact
             # and name in address are not the same (address will have person name)
@@ -630,7 +970,12 @@ class IntegrationResPartnerProxy(models.TransientModel):
             tag = self._get_integration_tag()
             address_vals['category_id'] = [(6, 0, tag.ids)]
 
-            address = ResPartner.create(address_vals)
+            # The context key 'no_vat_validation' allows assign an address to contact with a VAT number.
+            ctx = {'res_partner_search_mode': 'customer'}
+            if self.integration_id.ignore_vat_validation:
+                ctx.update({'no_vat_validation': True})
+
+            address = ResPartner.with_context(**ctx).create(address_vals)
 
         # If 'type' is provided in address_vals, filter the results
         elif 'type' in address_vals:
@@ -655,7 +1000,6 @@ class IntegrationResPartnerProxy(models.TransientModel):
             ('zip', '=ilike'),
             ('state_id', '='),
             ('country_id', '='),
-            ('external_company_name', '=ilike'),
         ])
 
         domain = self._build_search_domain(search_criteria, address_vals)
@@ -676,6 +1020,7 @@ class IntegrationResPartnerProxy(models.TransientModel):
         """
         address_vals = {
             'parent_id': self.factory_id.customer_id.id,
+            'company_id': self.company_id.id,
         }
 
         # Set the address type based on the proxy type.
@@ -698,7 +1043,7 @@ class IntegrationResPartnerProxy(models.TransientModel):
         # skip processing the company. This is because, with manual mapping, we retrieve the
         # partner from the mapping and do not add a company to it.
         if self.company_name and not self.integration_id.use_manual_customer_mapping:
-            company = self._get_or_create_company()
+            company = self._get_or_create_company_contact()
             address_vals['parent_id'] = company.id
 
         address_match_fields = self.get_address_match_simple_fields()
@@ -727,80 +1072,9 @@ class IntegrationResPartnerProxy(models.TransientModel):
 
         return address_vals
 
-    @api.model
-    def _find_odoo_country(self) -> models.Model:
-        """
-        Find the corresponding Odoo country based on the provided data.
-        """
-        country = self.env['res.country']
-
-        if self.country:
-            country = country.from_external(self.integration_id, self.country)
-        elif self.country_code:
-            country = self.env['res.country'].search([
-                ('code', '=ilike', self.country_code),
-            ], limit=1)
-
-        return country
-
-    def _find_odoo_state(self, odoo_country: models.Model) -> models.Model:
-        """
-        Find the corresponding Odoo state based on the provided country.
-        """
-        state = self.env['res.country.state']
-
-        if not state.search([('country_id', '=', odoo_country.id)]):
-            return state
-
-        if self.state:
-            state = state.from_external(self.integration_id, self.state)
-        elif self.state_code and odoo_country:
-            state = state.search([
-                ('country_id', '=', odoo_country.id),
-                ('code', '=ilike', self.state_code),
-            ], limit=1)
-
-        return state
-
-    def _get_integration_tag(self) -> models.Model:
-        """
-        Retrieve or create an integration tag for the current integration.
-        """
-        ResPartnerTag = self.env['res.partner.category']
-        main_tag = self.env.ref('integration.main_integration_tag', False) or ResPartnerTag
-
-        tag = ResPartnerTag.search([
-            ('name', '=', self.integration_id.name),
-            ('parent_id', '=', main_tag.id),
-        ])
-
-        if not tag:
-            tag = ResPartnerTag.sudo().create({
-                'name': self.integration_id.name,
-                'parent_id': main_tag.id,
-            })
-
-        return tag
-
-    def _build_search_domain(self, search_criteria: List, values: Dict) -> List:
-        """
-        Build a search domain based on the provided search criteria and values.
-        """
-        domain = []
-
-        for key, op in search_criteria:
-            value = values.get(key, '')
-
-            if value:
-                # Escape the value if the operator is 'ilike'
-                if isinstance(value, str) and op == '=ilike':
-                    value = escape_psql(value)
-                domain.append((key, op, value))
-            else:
-                # If there is no value, use the 'in' operator and an empty list for filtering
-                domain.append((key, 'in', ['', False]))
-
-        return domain
+    # ================================
+    # IV. MAPPINGS, VAT, LOGGING, ETC.
+    # ================================
 
     @api.model
     def _create_or_update_mapping(self, with_new_cursor=False) -> models.Model:
@@ -841,9 +1115,6 @@ class IntegrationResPartnerProxy(models.TransientModel):
 
         return external_mapping
 
-    def _post_update_partner(self, partner: models.Model):
-        return partner
-
     def _get_vat(self) -> Dict:
         """
         Prepare VAT value.
@@ -851,7 +1122,10 @@ class IntegrationResPartnerProxy(models.TransientModel):
         vals = {}
 
         company_vat_field = self.integration_id.customer_company_vat_field
-        company_reg_number = self.company_reg_number
+        company_reg_number = self.company_reg_number or ''
+        if company_reg_number:
+            company_reg_number = company_reg_number.replace(' ', '').replace('-', '')
+
         country = self._find_odoo_country()
 
         if company_vat_field and company_reg_number:
@@ -868,17 +1142,6 @@ class IntegrationResPartnerProxy(models.TransientModel):
 
         return vals
 
-    def _log_message(self, partner, subject, body):
-        """
-        Log a message for the given partner.
-        """
-        partner._message_log(
-            body=body,
-            subject=subject,
-            author_id=self.env.user.partner_id.id,
-            message_type='comment',
-        )
-
     def _validate_vat(self, company_reg_number: str, country: str) -> tuple:
         """
         Validate VAT number based on the integration settings.
@@ -891,3 +1154,18 @@ class IntegrationResPartnerProxy(models.TransientModel):
             return True, 'VAT cannot be validated as no country is specified for the address.'
 
         return self.env['res.partner']._validate_integration_vat(company_reg_number, country)
+
+    def _log_message(self, partner, subject, body):
+        """
+        Log a message for the given partner.
+        """
+        partner._message_log(
+            body=body,
+            subject=subject,
+            author_id=self.env.user.partner_id.id,
+            message_type='comment',
+        )
+
+    def _post_update_partner(self, partner: models.Model):
+        """Hook for extensions. Can be overridden in child classes."""
+        return partner

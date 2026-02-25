@@ -39,8 +39,10 @@ export class IntegrationStatusMenu extends Component {
             activityCounterFailed: 0,
             activityCounterMissing: 0,
             activityCounter: '',
+            activityVisible: false,
             isOpen: false,
             isLoaded: false,
+            isManager: false,
         });
 
         this.orm = useService("orm");
@@ -51,6 +53,8 @@ export class IntegrationStatusMenu extends Component {
                 // Do nothing during JS tests
                 return;
             }
+
+            this.state.isManager = await this.user.hasGroup('integration.group_integration_manager');
 
             if (!this.state.isLoaded) {
                 const data = await this.orm.call(
@@ -63,6 +67,7 @@ export class IntegrationStatusMenu extends Component {
                 this.state.activityCounterFailed = data.reduce((acc, value) => { return acc + value.failed_jobs_count || 0; }, 0);
                 this.state.activityCounterMissing = data.reduce((acc, value) => { return acc + value.missing_mappings_count || 0; }, 0);
                 this.state.activityCounter = this.state.activityCounterFailed + ' / ' + this.state.activityCounterMissing;
+                this.state.activityVisible = this.state.activityCounterFailed > 0 || this.state.activityCounterMissing > 0;
                 this.state.isLoaded = true;
                 this.state.typeApis = [...new Set(data.map(i => i.type_api))];
             }
@@ -80,6 +85,7 @@ export class IntegrationStatusMenu extends Component {
         this.state.activityCounterFailed = data.reduce((acc, value) => { return acc + value.failed_jobs_count || 0; }, 0);
         this.state.activityCounterMissing = data.reduce((acc, value) => { return acc + value.missing_mappings_count || 0; }, 0);
         this.state.activityCounter = this.state.activityCounterFailed + ' / ' + this.state.activityCounterMissing;
+        this.state.activityVisible = this.state.activityCounterFailed > 0 || this.state.activityCounterMissing > 0;
         this.state.typeApis = [...new Set(data.map(i => i.type_api))];
     }
 

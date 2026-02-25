@@ -19,8 +19,8 @@ class ExternalStockLocationLine(models.Model):
     )
 
     integration_id = fields.Many2one(
+        string='E-Commerce Store',
         comodel_name='sale.integration',
-        string='Integration',
         ondelete='cascade',
         required=True,
     )
@@ -59,7 +59,7 @@ class ExternalStockLocationLine(models.Model):
             else:
                 record.location_name = f'Record ID: {record.id}'
 
-    def _group_by_exernal_code(self):
+    def _group_by_external_code(self):
         """
         Group self-recordset by `external_location_id`
 

@@ -28,4 +28,4 @@ class MrpBom(models.Model):
         template = self.product_tmpl_id
         integrations = template.mapped('product_variant_ids.integration_ids').filtered(lambda x: x.is_active)
         for integration in integrations:
-            template._export_inventory_on_template(integration)
+            template._export_inventory_on_template(integration.id)

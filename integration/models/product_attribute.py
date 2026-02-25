@@ -24,15 +24,13 @@ class ProductAttribute(models.Model):
 
         return {
             'id': self.id,
-            'name': integration.convert_translated_field_to_integration_format(
-                self, 'name'
-            ),
+            'name': self.convert_field_translations_to_external(integration.id, 'name'),
         }
 
     @api.constrains('exclude_from_synchronization')
     def _check_product_attribute_values(self):
         for attribute in self.filtered(lambda x: x.exclude_from_synchronization):
-            attribute_line = attribute.attribute_line_ids.filtered(lambda l: l.value_count > 1)
+            attribute_line = attribute.attribute_line_ids.filtered(lambda line: line.value_count > 1)
             if attribute_line:
                 template_names = attribute_line.mapped('product_tmpl_id.display_name')
                 raise ValidationError(_(

@@ -40,17 +40,16 @@ class ExternalIntegration(Controller):
             body.update({'code': 1, 'message': 'Integration API key is missing.'})
             return request.make_response(json.dumps(body), headers=headers)
 
-        ResConfig = env['res.config.settings']
-        internal_api_key = ResConfig.get_integration_api_key()
-        if internal_api_key not in [headers_api_key, kwargs_api_key]:
-            body.update({'code': 1, 'message': 'Integration API key is invalid.'})
-            return request.make_response(json.dumps(body), headers=headers)
-
         integration_id = kw.get('integration_id')
         integration = env['sale.integration'].browse(integration_id).exists()
         if not integration or integration.state == 'draft':
             message = f'Integration ID {integration_id} not found/or inactive in Odoo'
             body.update({'code': 1, 'message': message})
+            return request.make_response(json.dumps(body), headers=headers)
+
+        internal_api_key = integration.get_integration_api_key()
+        if internal_api_key not in [headers_api_key, kwargs_api_key]:
+            body.update({'code': 1, 'message': 'Integration API key is invalid.'})
             return request.make_response(json.dumps(body), headers=headers)
 
         order_code = kw.get('order_id')

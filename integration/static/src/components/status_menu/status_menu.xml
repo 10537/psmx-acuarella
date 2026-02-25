@@ -2,11 +2,12 @@
 <templates xml:space="preserve">
 
 <t t-name="integration.IntegrationStatusMenu">
+    <t t-if="state.isManager">
         <div t-att-class="integrationStatusMenuSystray.class">
             <Dropdown state="dropdown" beforeOpen.bind="beforeOpen" position="'bottom-end'" menuClass="integrationStatusMenuSystray.menuClass">
                 <button>
                     <i class="fa fa-lg fa-rocket" role="img" aria-label="Integration Status"></i>
-                    <span t-if="state.activityCounter">
+                    <span t-if="state.activityVisible">
                         <span class="IntegrationStatusMenu_badge badge rounded-pill">
                             <t t-esc="state.activityCounter"/>
                         </span>
@@ -18,6 +19,7 @@
             </Dropdown>
         </div>
     </t>
+</t>
 
 <t t-name="integration.IntegrationStatusMenu.content">
     <div t-att-class="`${integrationStatusMenuSystray.contentClass} o-integration-IntegrationStatusMenu`">
@@ -42,7 +44,7 @@
                             </p>
                         </div>
 
-                        <hr class="mb-3 mt-3" />
+                        <hr class="mb-3 mt-3"/>
                     </t>
 
                     <!-- Rate Us block -->

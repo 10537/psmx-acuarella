@@ -8,6 +8,7 @@ from typing import List, Dict
 from odoo import models, fields, _
 from odoo.exceptions import UserError, ValidationError
 from odoo.tools.sql import escape_psql
+from odoo.tools.misc import clean_context
 
 from ...tools import _compute_checksum, ExternalImage, IS_FALSE
 from ...exceptions import ApiImportError
@@ -40,7 +41,7 @@ class IntegrationProductTemplateExternal(models.Model):
     )
 
     timestamp_export_datetime = fields.Datetime(
-        string='Export Point',
+        string='Last Export Time',
         compute='_compute_timestamp_export_datetime',
     )
 
@@ -129,15 +130,19 @@ class IntegrationProductTemplateExternal(models.Model):
             }
         }
 
-    def import_one_product_by_hook(self):
+    def import_one_product_by_hook(self, check_hook_gap: bool = False):
         self.ensure_one()
         integration = self.integration_id
 
-        export_timedelta = integration \
-            .get_settings_value('receive_webhook_gap', default_value=0)
-
-        if (self.current_time - self.timestamp_export) <= int(export_timedelta):
-            return False
+        if check_hook_gap:
+            export_timedelta = integration.get_settings_value('receive_webhook_gap', default_value=0)
+            if (self.current_time - self.timestamp_export) <= int(export_timedelta):
+                _logger.info(
+                    '%s: Product with code=%s is not updated because the hook gap is less than the export timedelta',
+                    integration.name,
+                    self.code,
+                )
+                return False
 
         return self.import_one_product(import_images=integration.allow_import_images)
 
@@ -145,7 +150,7 @@ class IntegrationProductTemplateExternal(models.Model):
         self.ensure_one()
 
         template_data, variants_data, bom_data, external_images = self.integration_id.adapter\
-            .get_product_for_import(self.code, import_images=import_images)
+            .get_product_for_import(self.code)
 
         return self.with_context(integration_import_images=import_images) \
             ._import_one_product(template_data, variants_data, bom_data, external_images)
@@ -157,8 +162,9 @@ class IntegrationProductTemplateExternal(models.Model):
         bom_data: list,
         external_images: List[ExternalImage],
     ):
+        integration = self.integration_id
         self = self.with_context(skip_product_export=True)
-        import_images = self._context.get('integration_import_images')
+        import_images = self.env.context.get('integration_import_images')
 
         # 1. Try map template and variants
         template = self.with_context(
@@ -173,7 +179,7 @@ class IntegrationProductTemplateExternal(models.Model):
             template = template.with_context(integration_first_time_import=first_time_template_import)
             self._update_template_from_external(template, template_data)
         else:
-            template = self.with_context(integration_product_creating=True) \
+            template = self.with_context(integration_first_time_import=True) \
                 ._create_template(template_data)
 
         # If template is not active, then we have to update it with the context `active_test=False`
@@ -189,50 +195,47 @@ class IntegrationProductTemplateExternal(models.Model):
 
         # 3. Find and update all the variants with received data
         for variant_data in variants_data:
-            # 3.1 Init receive-converter
-            converter = self.integration_id.init_receive_field_converter(
-                self.env['product.product'],
-                variant_data,
-            )
+            # 3.1 Find external record by `complex-code`
+            code = integration.adapter._build_product_external_code(
+                template_data['id'], variant_data['id'])
 
-            # 3.2 Find external record by `complex-code`
-            code = converter.get_ext_attr('variant_id')
-            external_variant = self.external_product_variant_ids\
+            external_variant = self.external_product_variant_ids \
                 .filtered(lambda x: x.code == code)
 
             assert external_variant, _('External variant %s not found') % code
 
-            # 3.3 Find suitable variant among template childs.
+            # 3.2 Find suitable variant among template childs.
             variant = external_variant._find_suitable_variant(template.product_variant_ids)
 
             if variant:
-                # Update the `odoo_obj` parameter for existing converter
-                converter.replace_record(
-                    variant.with_context(integration_first_time_import=first_time_template_import),
-                )
-                vals = converter.convert_from_external()
+                values = variant \
+                    .with_context(integration_first_time_import=first_time_template_import) \
+                    .calculate_import_fields_data(integration.id, template_data, variant_data)
             else:
-                # 3.3.1 Create the new variant if Odoo didn't creat it automatically because of
-                # the dynamic-attributes and the `integration_product_creating` context variable
+                # 3.2.1 Create the new variant if Odoo didn't creat it automatically because of
+                # the dynamic-attributes and the `integration_first_time_import` context variable
                 variant = self.env['product.product'] \
                     .with_context(integration_first_time_import=True) \
                     .create({'product_tmpl_id': template.id})
 
-                converter.replace_record(variant)
+                values = variant.calculate_import_fields_data(
+                    integration.id, template_data, variant_data,
+                )
 
-                vals = converter.convert_from_external()
-                attribute_values = converter._get_template_attribute_values(template.id)
+                attribute_values = template._get_template_attribute_values(
+                    integration.id,
+                    variant_data['_attribute_value_ids'],
+                )
 
-                vals.update(
+                values.update(
                     product_tmpl_id=template.id,
                     product_template_attribute_value_ids=[(6, 0, attribute_values.ids)],
                 )
 
-            # 3.4 Create / Update variant with actual values
-            variant = external_variant.create_or_update_with_translation(
-                self.integration_id, variant, vals)
+            # 3.3 Create / Update variant with actual values
+            variant = external_variant.create_or_update_with_translations(integration.id, variant, values)
 
-            # 3.5 Link external record to odoo record (make mapping)
+            # 3.4 Link external record to odoo record (make mapping)
             external_variant.create_or_update_mapping(odoo_id=variant.id)
             external_variants |= external_variant
 
@@ -242,6 +245,10 @@ class IntegrationProductTemplateExternal(models.Model):
 
         # 5. Receive images
         self._process_images_in(external_images, receive_binaries=import_images)
+
+        template.with_context(
+            clean_context(template.env.context)
+        ).import_template_hook(integration.id, force_import=first_time_template_import)
 
         return template
 
@@ -365,9 +372,11 @@ class IntegrationProductTemplateExternal(models.Model):
 
         return (to_unlink_images - images).unlink()
 
-    def _update_template_from_external(self, template, ext_data):
-        converter = self.integration_id.init_receive_field_converter(template, ext_data)
-        attr_values_ids_by_attr_id = converter.get_ext_attr('attr_values_ids_by_attr_id')
+    def _update_template_from_external(self, template: models.Model, template_data: dict):
+        integration = self.integration_id
+        attr_values_ids_by_attr_id = integration.convert_external_attributes(
+            template_data['_attributes']
+        )
 
         # 1. Update template attributes (actualize variants count)
         for attr_id, value_ids in attr_values_ids_by_attr_id.items():
@@ -383,23 +392,20 @@ class IntegrationProductTemplateExternal(models.Model):
                 })]
 
         # 2. Update template with actual values
-        upd_vals = converter.convert_from_external()
-
-        template = self.create_or_update_with_translation(
-            integration=self.integration_id,
-            odoo_object=template,
-            vals=upd_vals,
-        )
+        values = template.calculate_import_fields_data(integration.id, template_data)
+        template = self.create_or_update_with_translations(integration.id, template, values)
 
         return template
 
-    def _create_template(self, ext_template):
-        converter = self.integration_id.init_receive_field_converter(
-            self.env['product.template'],
-            ext_template,
+    def _create_template(self, template_data: dict):
+        integration = self.integration_id
+
+        values = self.env['product.template'] \
+            .calculate_import_fields_data(integration.id, template_data)
+
+        attr_values_ids_by_attr_id = integration.convert_external_attributes(
+            template_data['_attributes']
         )
-        upd_vals = converter.convert_from_external()
-        attr_values_ids_by_attr_id = converter.get_ext_attr('attr_values_ids_by_attr_id')
 
         attribute_line_ids = [
             (0, 0, {
@@ -408,13 +414,9 @@ class IntegrationProductTemplateExternal(models.Model):
             }) for attr_id, value_ids in attr_values_ids_by_attr_id.items()
         ]
         if attribute_line_ids:
-            upd_vals['attribute_line_ids'] = attribute_line_ids
+            values['attribute_line_ids'] = attribute_line_ids
 
-        template = self.create_or_update_with_translation(
-            integration=self.integration_id,
-            odoo_object=self.env['product.template'],
-            vals=upd_vals,
-        )
+        template = self.create_or_update_with_translations(integration.id, self.env['product.template'], values)
 
         self.create_or_update_mapping(odoo_id=template.id)
 
@@ -609,12 +611,18 @@ class IntegrationProductTemplateExternal(models.Model):
             variant = external_variant._find_suitable_variant(odoo_variant_ids)
 
             if not variant:
+                odoo_variant_info = '\n'.join(
+                    f'ID: {v.id}, '
+                    f'Internal Reference: {v.default_code or "-"}, '
+                    f'Barcode: {v.barcode or "-"}'
+                    for v in odoo_variant_ids
+                )
                 raise ApiImportError(_(
-                    'The external variant "%s" was not found among the following Odoo records: %s. '
+                    'The external variant "%s" was not found among the following Odoo records:\n%s.\n\n'
                     'Please make sure that your have corresponding product variant in Odoo. '
                     'If the issue persists, contact our support team for further '
                     'investigation: https://support.ventor.tech/'
-                ) % (external_variant.format_recordset(), odoo_variant_ids.format_recordset()))
+                ) % (external_variant.format_recordset(), odoo_variant_info))
 
             external_variant.create_or_update_mapping(odoo_id=variant.id)
 
@@ -696,10 +704,8 @@ class IntegrationProductTemplateExternal(models.Model):
                 )
             )
 
-        template = template.with_context(integration_id=self.integration_id.id)
-
         # 2. Serialize existing boms
-        kits = template.get_integration_kits(limit=None)
+        kits = template.get_integration_kits(self.integration_id.id, limit=None)
 
         kit = None
         for record in kits:
@@ -774,3 +780,51 @@ class IntegrationProductTemplateExternal(models.Model):
         self.all_image_mapping_ids.filtered(lambda x: x.in_pending).unlink()
         self.all_image_external_ids.filtered(lambda x: not x.mapping_ids).unlink()
         return True
+
+    def calculate_import_fields_data(self):
+        self.ensure_one()
+
+        integration = self.integration_id
+        template_data, *__ = integration.adapter.get_product_for_import(self.code)
+
+        product_template = self.odoo_record
+
+        return product_template \
+            .with_context(integration_first_time_import=(not product_template)) \
+            .calculate_import_fields_data(integration.id, template_data)
+
+    def action_open_external_product(self):
+        """
+        Open the product in the e-commerce system.
+        """
+        self.ensure_one()
+
+        if not self.code:
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'message': 'No external product code found.',
+                    'type': 'warning',
+                    'sticky': False,
+                }
+            }
+
+        try:
+            url = self.integration_id.get_product_url(self.code)
+            return {
+                'type': 'ir.actions.act_url',
+                'url': url,
+                'target': 'new',
+            }
+        except Exception as e:
+            _logger.warning('Failed to get product URL: %s', str(e))
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'message': f'Unable to open product in e-commerce system: {str(e)}',
+                    'type': 'warning',
+                    'sticky': False,
+                }
+            }

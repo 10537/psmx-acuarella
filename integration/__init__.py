@@ -8,5 +8,4 @@ from . import controllers
 
 def post_init_hook(env):
     """ Generate API key for the installed integration. """
-    Config = env['res.config.settings']
-    Config.generate_integration_api_key()
+    env['sale.integration'].generate_integration_api_key()

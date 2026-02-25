@@ -47,7 +47,7 @@
                             <button string="Skip" class="btn-secondary" special="cancel"/>
                         </div>
                         <div>
-                            <button string="Open in Shopify" name="open_integration_order" type="object" class="btn-secondary"/>
+                            <button string="Open in Shopify" name="action_open_integration_order" type="object" class="btn-secondary"/>
                         </div>
                     </div>
                 </footer>

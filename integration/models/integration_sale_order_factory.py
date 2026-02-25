@@ -6,10 +6,10 @@ import warnings
 from typing import Dict
 
 from odoo import models, api, _
-from odoo.exceptions import UserError, ValidationError
+from odoo.exceptions import UserError
 from odoo.tools.float_utils import float_is_zero, float_round
 
-from ..exceptions import ApiImportError, NotMappedFromExternal
+from ..exceptions import ErrorStore, ApiImportError, NotMappedFromExternal
 
 _logger = logging.getLogger(__name__)
 
@@ -42,9 +42,14 @@ class IntegrationSaleOrderFactory(models.AbstractModel):
         if order_name:
             order_vals['name'] = order_name
 
-        order = self.env['sale.order'].create(order_vals)
+        order = self.env['sale.order'] \
+            .with_context(
+                skip_dispatch_to_external=True,
+                skip_integration_order_post_action=True,
+            ) \
+            .create(order_vals)
         # Additional Order adjustments
-        order.with_context(skip_integration_order_post_action=True)._apply_values_from_external(order_data)
+        order._apply_values_from_external(order_data)
 
         # Configure dictionary with the default/force values after `onchange_partner_id()` method
         values = {
@@ -57,11 +62,15 @@ class IntegrationSaleOrderFactory(models.AbstractModel):
 
         if integration.default_sales_person_id:
             values['user_id'] = integration.default_sales_person_id.id
+        elif integration.keep_sales_person_empty:
+            values['user_id'] = False
 
         delivery = self.env['res.partner'].browse(order_vals['partner_shipping_id'])
 
-        fiscal_position = self.env['account.fiscal.position'].with_company(order.company_id) \
+        fiscal_position = self.env['account.fiscal.position'] \
+            .with_company(order.company_id) \
             ._get_fiscal_position(order.partner_id, delivery)
+
         values['fiscal_position_id'] = fiscal_position.id
 
         # Payment Terms should be set after order is created because after order is created
@@ -125,7 +134,8 @@ class IntegrationSaleOrderFactory(models.AbstractModel):
 
         for mapping in mappings:
             field_name = mapping.odoo_order_field_id.name
-            value = mapping.calculate_value(external_order_data)
+            value = mapping.calculate_order_import_value(external_order_data, raise_error=False)
+
             if value is not None:
                 values[field_name] = value
 
@@ -226,10 +236,16 @@ class IntegrationSaleOrderFactory(models.AbstractModel):
             )
 
         if not odoo_product:
-            odoo_product = self._try_get_odoo_product(integration, line_data)
+            try:
+                odoo_product = self._try_get_odoo_product(integration, line_data)
+            except (ErrorStore.UndefinedExternalProduct, ErrorStore.NotFoundExternalProduct):
+                odoo_product = self.env['product.product']
 
         discount_price = discount['discount_amount']
-        taxes = self.get_taxes_from_external_list(odoo_product, integration, line_data['taxes'])
+
+        taxes = self.env['account.tax']
+        if not discount.get('discount_skip_taxes', False):
+            taxes = self.get_taxes_from_external_list(odoo_product, integration, line_data['taxes'])
 
         if discount.get('discount_amount_tax_incl'):
             if taxes and self._get_tax_price_included(taxes):
@@ -240,9 +256,16 @@ class IntegrationSaleOrderFactory(models.AbstractModel):
         discount_price = discount_price * -1
 
         # create discount line values dictionary
+        if odoo_product:
+            line_name = odoo_product.display_name
+        else:
+            line_name, line_reference = line_data.get('name'), line_data.get('reference')
+            if line_reference:
+                line_name = f'[{line_reference}] {line_name}'
+
         return {
             'product_id': discount_product.id,
-            'name': 'Discount for ' + odoo_product.display_name,
+            'name': f'Discount for {line_name}',
             'price_unit': discount_price,
             'product_uom_qty': 1,
             'tax_id': [(6, 0, taxes.ids)],
@@ -337,32 +360,31 @@ class IntegrationSaleOrderFactory(models.AbstractModel):
     def _try_get_odoo_product(self, integration, line, force_create=False):
         complex_variant_code = line['product_id']
 
+        if not complex_variant_code:
+            ErrorStore.raise_error(
+                err_code='E109',
+                integration_name=integration.name,
+                product_name=line.get('name', 'null'),
+                product_reference=line.get('reference', 'null'),
+            )
+
         product = self._get_odoo_product(integration, complex_variant_code)
         if product:
             return product
 
         # If the product is not found, attempt to re-import it from the external system
-        template_code, __ = integration.adapter._parse_product_external_code(complex_variant_code)
-        external_template, external_variants, errors = integration._import_external_product(template_code)
+        template_code, variant_code = integration.adapter._parse_product_external_code(complex_variant_code)
+        external_template, external_variants, __ = integration._import_external_product(template_code)
 
         # Use fallback product if no external templates found or variant code doesn't match.
         if not external_template or complex_variant_code not in external_variants.mapped('code'):
-            if integration.fallback_product_id:
-                return integration.fallback_product_id
-
-            raise ValidationError(
-                _(
-                    'The order contains a line item with missing product '
-                    'details (either product ID or SKU is empty).\n\n'
-                    'This typically happens when products are removed from the external system or custom '
-                    'items are added via order editing. '
-                    'Product information is required to import the order into Odoo.\n\n'
-                    'To resolve this issue, you can do one of the following:\n'
-                    '1. Configure a Fallback Product in the integration settings under the "Sales Orders" tab.\n'
-                    '2. Manually adjust the order in the external system to correct '
-                    'the missing product information.\n\n'
-                    'Once this is done, requeue the job to continue processing the order.'
-                )
+            ErrorStore.raise_error(
+                err_code='E110',
+                integration_name=integration.name,
+                product_id=template_code,
+                variant_id=variant_code,
+                product_name=line.get('name', 'null'),
+                product_reference=line.get('reference', 'null'),
             )
 
         auto_create_product = force_create or integration.auto_create_products_on_so
@@ -392,13 +414,39 @@ class IntegrationSaleOrderFactory(models.AbstractModel):
         with policy "Show public price & discount to the customer".
         If necessary, the discount will be created as a sepatare line.
         """
-        product = self._try_get_odoo_product(integration, line)
         vals = {
             'discount': 0,
-            'product_id': product.id,
             'integration_external_id': line['id'],
             'external_location_id': line.get('external_location_id', False),
         }
+
+        try:
+            product = self._try_get_odoo_product(integration, line)
+            vals['product_id'] = product.id
+
+            if line.get('add_description_list'):
+                vals['name'] = self._update_order_description(product, line['add_description_list'])
+
+        except (ErrorStore.UndefinedExternalProduct, ErrorStore.NotFoundExternalProduct):
+            line_name, line_reference = line['name'], line['reference']
+
+            # Try to get fallback product if the product is not found or not defined
+            product = integration.get_fallback_product_or_raise(
+                line['product_id'],
+                line_name,
+                line_reference,
+            )
+            vals['product_id'] = product.id
+
+            # Add product name to the description list takin into account that
+            # the add_description_list variable also may contains some text
+            description_list = line.get('add_description_list') or []
+
+            if line_reference:
+                line_name = f'[{line_reference}] {line_name}'
+
+            description_list.insert(0, line_name)
+            vals['name'] = '\n'.join(description_list)
 
         if 'product_uom_qty' in line:
             vals['product_uom_qty'] = line['product_uom_qty']
@@ -410,10 +458,6 @@ class IntegrationSaleOrderFactory(models.AbstractModel):
         if taxes and self._get_tax_price_included(taxes):
             if line.get('price_unit_tax_incl'):
                 vals['price_unit'] = line['price_unit_tax_incl']
-
-        if line.get('add_description_list'):
-            data_list = line['add_description_list']
-            vals['name'] = self._update_order_description(product, data_list)
 
         # Create discount included in the line
         if not integration.separate_discount_line and line.get('discount'):
@@ -651,7 +695,8 @@ class IntegrationSaleOrderFactory(models.AbstractModel):
                 raise ApiImportError(
                     _(
                         'The total amount in the sales order from "%s" differs from '
-                        'the calculated amount in Odoo, usually due to rounding issues or tax discrepancies.\n\n'
+                        'the calculated amount in Odoo, usually due to rounding issues or tax discrepancies.\n'
+                        'Order amounts: %f (Odoo) vs %f (%s)\n\n'
                         'Odoo and "%s" calculate taxes differently, which can lead to this issue. '
                         'To resolve it, you can either:\n'
                         '1. Go to "E-Commerce Integrations → Stores → %s".\n'
@@ -661,7 +706,14 @@ class IntegrationSaleOrderFactory(models.AbstractModel):
                         'the same tab if you do not want Odoo to handle price discrepancies.\n\n'
                         'Once the issue is resolved, requeue the job, and the sales order will '
                         'be created in Odoo with the correct total.'
-                    ) % (integration.type_api, integration.type_api, integration.name)
+                    ) % (
+                        integration.name,
+                        order.amount_total,
+                        amount_total,
+                        integration.name,
+                        integration.name,
+                        integration.name
+                    )
                 )
 
             return self.env['sale.order.line'].create({

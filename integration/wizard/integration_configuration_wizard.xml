@@ -32,25 +32,25 @@
                                     <h4>Contents</h4>
                                     <ul class="list-group pb-2">
                                         <li class="list-group-item">
-                                            <button class="btn btn-sm btn-link" name="go_to_step_1" type="object" string="1. Installation and Basic Odoo Setup" />
+                                            <button class="btn btn-sm btn-link" name="go_to_step_1" type="object" string="1. Installation and Basic Odoo Setup"/>
                                         </li>
                                         <li class="list-group-item">
-                                            <button class="btn btn-sm btn-link" name="go_to_step_2" type="object" string="2. Odoo - E-Commerce Store Connection Configuration" />
+                                            <button class="btn btn-sm btn-link" name="go_to_step_2" type="object" string="2. Odoo - E-Commerce Store Connection Configuration"/>
                                         </li>
                                         <li class="list-group-item">
-                                            <button class="btn btn-sm btn-link" name="go_to_step_3" type="object" string="3. Initial Import: Master Data (Attributes, Categories, Taxes, etc.)" />
+                                            <button class="btn btn-sm btn-link" name="go_to_step_3" type="object" string="3. Initial Import: Master Data (Attributes, Categories, Taxes, etc.)"/>
                                         </li>
                                         <li class="list-group-item">
-                                            <button class="btn btn-sm btn-link" name="go_to_step_4" type="object" string="4. Products: Initial Import into Odoo" />
+                                            <button class="btn btn-sm btn-link" name="go_to_step_4" type="object" string="4. Products: Initial Import into Odoo"/>
                                         </li>
                                         <li class="list-group-item">
-                                            <button class="btn btn-sm btn-link" name="go_to_step_5" type="object" string="5. Orders: Import Configuration &amp; Settings" />
+                                            <button class="btn btn-sm btn-link" name="go_to_step_5" type="object" string="5. Orders: Import Configuration &amp; Settings"/>
                                         </li>
                                         <li class="list-group-item">
-                                            <button class="btn btn-sm btn-link" name="go_to_step_6" type="object" string="6. Product Information Synchronization" />
+                                            <button class="btn btn-sm btn-link" name="go_to_step_6" type="object" string="6. Product Information Synchronization"/>
                                         </li>
                                         <li class="list-group-item">
-                                            <button class="btn btn-sm btn-link" name="go_to_step_7" type="object" string="7. Inventory Synchronization" />
+                                            <button class="btn btn-sm btn-link" name="go_to_step_7" type="object" string="7. Inventory Synchronization"/>
                                         </li>
                                     </ul>
                                     
@@ -239,7 +239,7 @@
                                             <button class="btn btn-sm btn-link"
                                                     name="go_to_integrations_list"
                                                     type="object"
-                                                    string="Start Using the Connector" />
+                                                    string="Start Using the Connector"/>
                                         </li>
                                         <li class="list-group-item">
                                             <a href="https://ecosystem.ventor.tech/frequently-asked-questions/"

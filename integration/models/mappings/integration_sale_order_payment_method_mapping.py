@@ -10,10 +10,12 @@ class IntegrationSaleOrderPaymentMethodMapping(models.Model):
     _mapping_fields = ('payment_method_id', 'external_payment_method_id')
 
     payment_method_id = fields.Many2one(
+        string='Odoo Payment Method',
         comodel_name='sale.order.payment.method',
         ondelete='cascade',
     )
     external_payment_method_id = fields.Many2one(
+        string='External Payment Method',
         comodel_name='integration.sale.order.payment.method.external',
         required=True,
         ondelete='cascade',

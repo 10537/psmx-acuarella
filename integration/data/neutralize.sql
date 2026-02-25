@@ -1,7 +1,6 @@
 -- deactivating important settings on the integration
 UPDATE  sale_integration
 SET     export_inventory_job_enabled = FALSE,
-        synchronize_all_inventory_periodically = FALSE,
         export_template_job_enabled = FALSE,
         export_tracking_job_enabled = FALSE,
         export_sale_order_status_job_enabled = FALSE,

@@ -9,8 +9,8 @@
             <notebook position="inside">
                 <page string="E-Commerce Integration" name="accounts_integration" invisible="not integration_id or move_type not in ['out_invoice','out_refund']" >
                     <group>
-                        <field name="integration_id" />
-                        <field name="external_payment_method_id" />
+                        <field name="integration_id"/>
+                        <field name="external_payment_method_id"/>
                     </group>
                 </page>
             </notebook>

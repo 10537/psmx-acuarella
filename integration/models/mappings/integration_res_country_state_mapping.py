@@ -10,11 +10,13 @@ class IntegrationResCountryStateMapping(models.Model):
     _mapping_fields = ('state_id', 'external_state_id')
 
     state_id = fields.Many2one(
+        string='Odoo State',
         comodel_name='res.country.state',
         ondelete='set null',
     )
 
     external_state_id = fields.Many2one(
+        string='External State',
         comodel_name='integration.res.country.state.external',
         required=True,
         ondelete='cascade',

@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
-    <record id="integration_import_import_product_wizard_form" model="ir.ui.view">
+    <record id="integration_import_product_wizard_form" model="ir.ui.view">
         <field name="name">Import Integration Product Form</field>
         <field name="model">integration.import.product.wizard</field>
         <field name="arch" type="xml">
-            <form string="Advanced Integration Product Import">
+            <form string="Advanced E-Commerce Store Product Import">
                 <header>
                     <field name="state" widget="statusbar"/>
                 </header>
@@ -52,16 +52,16 @@
                 <footer class="d-flex justify-content-between">
                     <!-- Left-Aligned Buttons -->
                     <div>
-                        <button name="check" string="Check" type="object" class="btn-primary text-uppercase me-2" invisible="state != 'draft'" context="{'integration_catch_exception': True}"/>
-                        <button name="approve" string="Approve Incoming" type="object" class="btn-outline-danger text-uppercase me-2" invisible="state != 'checked'" context="{'integration_catch_exception': True}"/>
-                        <button name="perform" string="Perform" type="object" class="btn-primary text-uppercase me-2" invisible="state != 'approved'" context="{'integration_catch_exception': True}"/>
-                        <button string="Close" class="btn-secondary text-uppercase me-2" special="cancel"/>
-                        <button name="to_draft" string="To Draft" type="object" class="btn-secondary text-uppercase me-2" invisible="state == 'draft'"/>
+                        <button name="check" string="Check" type="object" class="btn-primary me-2" invisible="state != 'draft'" context="{'integration_catch_exception': True}"/>
+                        <button name="approve" string="Approve Incoming" type="object" class="btn-outline-danger me-2" invisible="state != 'checked'" context="{'integration_catch_exception': True}"/>
+                        <button name="perform" string="Perform" type="object" class="btn-primary me-2" invisible="state != 'approved'" context="{'integration_catch_exception': True}"/>
+                        <button string="Close" class="btn-secondary me-2" special="cancel"/>
+                        <button name="to_draft" string="To Draft" type="object" class="btn-secondary me-2" invisible="state == 'draft'"/>
                     </div>
 
                     <!-- Right-Aligned Button -->
                     <div>
-                        <button name="to_export_format_template" string="To Export Format" type="object" class="btn-secondary text-uppercase" invisible="not product_template_id or state not in ('draft', 'done')"/>
+                        <button name="to_export_format_template" string="To Export Format" type="object" class="btn-secondary" invisible="not product_template_id or state not in ('draft', 'done')"/>
                     </div>
                 </footer>
             </form>

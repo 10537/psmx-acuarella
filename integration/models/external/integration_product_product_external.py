@@ -1,7 +1,9 @@
 # See LICENSE file for full copyright and licensing details.
 
-from odoo import models, fields, api, _
+from odoo import models, fields, _
 from odoo.exceptions import UserError
+
+from ...api.abstract_apiclient import AbsApiClient
 
 
 class IntegrationProductProductExternal(models.Model):
@@ -70,6 +72,7 @@ class IntegrationProductProductExternal(models.Model):
         float_qty = float(qty or False)
         inventory_quant.inventory_quantity = float_qty
         inventory_quant.action_apply_inventory()
+
         return variant, location, float_qty
 
     def _fix_unmapped(self, adapter_external_data):
@@ -111,16 +114,6 @@ class IntegrationProductProductExternal(models.Model):
             'external_product_template_id': external_template.id,
         })
 
-    @api.model
-    def create_or_update(self, vals):
-        if 'deprecated_code' in vals:
-            # During product export `code` may be kind of `deprecated` (70-0 --> 70-71)
-            # if we changed number of variants. We need to do the search of the external record
-            # by old the value and than update it by the new value.
-            vals['code'] = vals.pop('deprecated_code')
-
-        return super().create_or_update(vals)
-
     def format_recordset(self):
         values = self.mapped(
             lambda x: ', '.join([
@@ -136,12 +129,15 @@ class IntegrationProductProductExternal(models.Model):
     def _search_suitable_variant(self):
         self.ensure_one()
 
+        product = self.env[self._odoo_model]
+
         # Search by the reference
-        product = self.external_product_template_id._find_product_by_field(
-            self._odoo_model,
-            self.integration_id.product_reference_name,
-            self.external_reference,
-        )
+        if self.external_reference:
+            product = self.external_product_template_id._find_product_by_field(
+                self._odoo_model,
+                self.integration_id.product_reference_name,
+                self.external_reference,
+            )
 
         # Search by the barcode
         if not product and self.external_barcode and self.integration_id.is_barcode_validation_required():
@@ -168,14 +164,22 @@ class IntegrationProductProductExternal(models.Model):
         return variant or self.env[self._odoo_model]
 
     def _filter_variants_by_reference(self, odoo_records):
+        if not self.external_reference:
+            return self.env[self._odoo_model]
+
         reference_field = self.integration_id.product_reference_name
         router = {getattr(x, reference_field): x for x in odoo_records}
+
         return router.get(self.external_reference)
 
     def _filter_variants_by_barcode(self, odoo_records):
+        if not self.external_barcode:
+            return self.env[self._odoo_model]
+
         barcode_field = self.integration_id.product_barcode_name
         router = {getattr(x, barcode_field): x for x in odoo_records}
-        return router.get(self.external_reference)
+
+        return router.get(self.external_barcode)
 
     def _filter_variants_by_attrs(self, odoo_records):
         attribute_value_ids = self.env['product.attribute.value']
@@ -216,3 +220,30 @@ class IntegrationProductProductExternal(models.Model):
             })
 
         return mapping
+
+    def calculate_import_fields_data(self):
+        self.ensure_one()
+
+        integration = self.integration_id
+        external_template = self.external_product_template_id
+        __, variant_code = self.code.split('-')
+
+        if variant_code == '0':
+            return external_template.calculate_import_fields_data()
+
+        template_data, variants_list, *__ = integration.adapter.get_product_for_import(external_template.code)
+
+        __, variant_code = AbsApiClient._parse_product_external_code(self.code)
+        variant_data = next(filter(lambda x: str(x['id']) == variant_code, variants_list), None)
+
+        if not variant_data:
+            raise UserError(_(
+                '%s: No variant data found for product (%s). This is a technical issue that requires investigation.'
+                ' Please contact our support team: https://support.ventor.tech/'
+            ) % (integration.name, self.format_recordset()))
+
+        product_variant = self.odoo_record
+
+        return product_variant \
+            .with_context(integration_first_time_import=(not product_variant)) \
+            .calculate_import_fields_data(integration.id, template_data, variant_data)

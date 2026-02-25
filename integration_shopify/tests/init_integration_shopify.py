@@ -2,7 +2,7 @@
 
 from odoo.addons.integration.tests.config.integration_init import OdooIntegrationBase, load_xml
 
-from .patch.shopify_api_patch import ShopifyAPIClientPatchTest
+from .patch import ShopifyAPIClientPatchTest
 
 
 class IntegrationShopifyBase(OdooIntegrationBase):
@@ -44,9 +44,25 @@ class IntegrationShopifyBase(OdooIntegrationBase):
         self.integration.location_line_ids = [(6, 0, location_line_ids.ids)]
         self.invoice_journal = self.env.ref('integration_shopify.integration_shopify_account_sales_journal_test')
 
-        # Perform some imports
+        # Import payment methods
         self.integration.integrationApiImportPaymentMethods()
+
+        # Import order statuses
         self.integration.integrationApiImportSaleOrderStatuses()
+
+        # Import attributes
+        external_records = self.integration.integrationApiImportAttributes()
+        self.integration.integrationApiImportAttributeValues()
+        external_records.run_import_attributes()
+
+        # Import categories
+        external_records = self.integration.integrationApiImportCategories()
+        external_records.import_categories()
+
+        # Import features
+        self.integration.integrationApiImportFeatureValues()
+        external_records = self.integration.integrationApiImportFeatures()
+        external_records.run_import_features()
 
         # Accounts adjustments
         self.product1 = self.env.ref('integration_shopify.shopify_product_product_49620724449000')
