@@ -22,12 +22,12 @@ class MailingAddress(GqlDict):
     @property
     def first_name(self):
         self.ensure_one()
-        return (self.firstName or '').strip()
+        return (self['firstName'] or '').strip()
 
     @property
     def last_name(self):
         self.ensure_one()
-        return (self.lastName or '').strip()
+        return (self['lastName'] or '').strip()
 
     @property
     def display_name(self):
