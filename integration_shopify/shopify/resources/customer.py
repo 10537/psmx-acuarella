@@ -45,7 +45,10 @@ class Customer(ShopifyResourceRead, MetafieldMixin):
         if not address_id:
             if self.addresses:
                 return self.addresses[0]
-            return self._env.MailingAddress.new()._set_pseudo_id()
+
+            address = self._env.MailingAddress
+            address._set_pseudo_id()
+            return address
 
         return self._filter_address(address_id)
 
@@ -126,6 +129,9 @@ class Customer(ShopifyResourceRead, MetafieldMixin):
         if not result:
             if self.addresses:
                 return self.addresses[0]
-            return self._env.MailingAddress.new()._set_pseudo_id()
+
+            address = self._env.MailingAddress
+            address._set_pseudo_id()
+            return address
 
         return result[0]
