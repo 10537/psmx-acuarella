@@ -40,7 +40,14 @@ class Customer(ShopifyResourceRead, MetafieldMixin):
     @property
     def default_address(self):
         self.ensure_one()
-        return self._filter_address(self.default_address_str_id)
+        address_id = self.default_address_str_id
+
+        if not address_id:
+            if self.addresses:
+                return self.addresses[0]
+            return self._env.MailingAddress.new()._set_pseudo_id()
+
+        return self._filter_address(address_id)
 
     @property
     def default_address_str_id(self):
@@ -117,6 +124,8 @@ class Customer(ShopifyResourceRead, MetafieldMixin):
         result = list(filter(lambda x: x.id_str == address_id, self.addresses))
 
         if not result:
-            raise ValueError(f'Address with id={address_id} not found')
+            if self.addresses:
+                return self.addresses[0]
+            return self._env.MailingAddress.new()._set_pseudo_id()
 
         return result[0]
