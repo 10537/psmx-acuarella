@@ -1,0 +1,90 @@
+<odoo>
+	<data>
+
+		<record id="view_order_form_melonn" model="ir.ui.view">
+			<field name="name">sale.order.melonn.form</field>
+			<field name="model">sale.order</field>
+			<field name="inherit_id" ref="sale.view_order_form"/>
+			<field name="arch" type="xml">
+				<xpath expr="//field[@name='date_order']" position="after">
+					<field name="carrier_id" invisible="0" options="{'no_create': True, 'no_open': True}"/>
+				</xpath>
+				<xpath expr="//button[@name='action_cancel']" position="after">
+					<button name="action_generar_guia" string="Generar GUÍA" icon="fa-file-text-o" class="oe_stat_button" type="object" invisible="state == 'cancel'"/>
+				</xpath>
+				<xpath expr="//page[@name='order_lines']" position="after">
+					<page string="Guía">
+						<group>
+							<field name="guia_envia" readonly="1"/>
+							<field name="guia_envia_url" readonly="1" widget="url"/>
+						</group>
+					</page>
+				</xpath>
+			</field>
+		</record>
+
+		<record id="wizard_delivery_envia_form_view" model="ir.ui.view">
+			<field name="name">wizard.delivery.envia.form.view</field>
+			<field name="model">wizard.delivery.envia</field>
+			<field name="arch" type="xml">
+				<form string="Generar guía envía">
+					<group col="2" style="width:100%">
+						<group string="Remitente">
+							<field name="remitente" invisible="1"/>
+							<field name="nom_remitente" readonly="1"/>
+							<field name="dir_remitente" readonly="1"/>
+							<field name="tel_remitente" readonly="1"/>
+							<field name="tel_remitente_wng" invisible="1"/>
+							<div colspan="2" invisible="not tel_remitente_wng" style="color:red;text-align:right">Longitud del teléfono remitente es mayor a 10</div>
+							<field name="ced_remitente" readonly="1"/>
+							<field name="ciudad_origen" readonly="1"/>
+						</group>
+						<group string="Destinatario">
+							<field name="destinatario" invisible="1"/>
+							<field name="nom_destinatario" readonly="1"/>
+							<field name="dir_destinatario" readonly="1"/>
+							<field name="tel_destinatario" readonly="1"/>
+							<field name="tel_destinatario_wng" invisible="1"/>
+							<div colspan="2" invisible="not tel_destinatario_wng" style="color:red;text-align:right">Longitud del teléfono destinatario es mayor a 10</div>
+							<field name="ced_destinatario" readonly="1"/>
+							<field name="ciudad_destino" readonly="1"/>
+						</group>
+					</group>
+					<group col="6" style="width:100%">
+						<field name="cod_regional_cta" readonly="1"/>
+						<field name="cod_oficina_cta" readonly="1"/>
+						<field name="cod_cuenta" readonly="guia" required="1"/>
+					</group>
+					<field name="es_recaudo" invisible="1"/>
+					<group>
+						<field name="cod_formapago" readonly="guia" invisible="es_recaudo" required="not es_recaudo"/>
+						<field name="cod_formapago_recaudo" readonly="guia" invisible="not es_recaudo" required="es_recaudo"/>
+						<field name="cod_servicio" readonly="guia" invisible="es_recaudo" required="not es_recaudo"/>
+						<field name="cod_servicio_recaudo" readonly="guia" invisible="not es_recaudo" required="es_recaudo"/>
+					</group>
+					<group style="width:50%">
+						<field name="num_unidades" readonly="guia" required="1"/>
+						<field name="mpesoreal_k" readonly="guia" required="1"/>
+						<field name="mpesovolumen_k" readonly="guia" required="1"/>
+						<field name="valor_declarado" readonly="guia" required="1"/>
+						<field name="valorproducto" readonly="guia" invisible="not es_recaudo" required="es_recaudo"/>
+						<field name="dice_contener" readonly="guia" required="1"/>
+						<field name="texto_guia" readonly="guia"/>
+					</group>
+					<field name="guia" invisible="1"/>
+					<div invisible="not guia">
+						<h1>Guía generada con éxito</h1>
+						<group>
+							<field name="guia_url" readonly="1" widget="url"/>
+						</group>
+					</div>
+					<footer>
+						<button name="send_by_envia" invisible="guia" type="object" string="Generar guía"/>
+					</footer>
+				</form>
+			</field>
+		</record>
+		        
+
+	</data>
+</odoo>

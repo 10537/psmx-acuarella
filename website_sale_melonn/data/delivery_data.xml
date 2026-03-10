@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="0">
+
+        <record id="product_product_delivery_melonn" model="product.product">
+            <field name="name">Melonn</field>
+            <field name="default_code">MELONN</field>
+            <field name="type">service</field>
+            <field name="categ_id" ref="delivery.product_category_deliveries"/>
+            <field name="sale_ok" eval="False"/>
+            <field name="purchase_ok" eval="False"/>
+            <field name="list_price">0.0</field>
+            <field name="invoice_policy">order</field>
+        </record>
+
+<!--        <record id="melonn_delivery_carrier" model="delivery.carrier">
+            <field name="name">Melonn</field>
+            <field name="fixed_price">0.0</field>
+            <field name="sequence">1</field>
+            <field name="delivery_type">fixed</field>
+            <field name="token">nsQxMF6EsL6aSR99UlDK971PftiBjkT3abiJmOFV</field>
+            <field name="url_sale_order_melonn">https://api.melonn.com/dev/api/sell-orders</field>
+            <field name="url_product_melonn">https://api.melonn.com/dev/api/products</field>
+            <field name="product_id" ref="website_sale_melonn.product_product_delivery_melonn"/>
+        </record>-->
+
+    </data>
+</odoo>
