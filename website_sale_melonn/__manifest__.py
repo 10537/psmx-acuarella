@@ -13,6 +13,7 @@
     'version': '18.0.2.0',
     'license': 'OPL-1',
     'depends': ['base','sale','website_sale','delivery', 'l10n_co'],
+    'external_dependencies': {'python': ['zeep']},
 
     'data': [
         'security/ir.model.access.csv',

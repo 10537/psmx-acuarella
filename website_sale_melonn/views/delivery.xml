@@ -37,6 +37,29 @@
                             <field name="wsg_test_cod_cuenta_recaudo"/>
                         </group>
                     </page>
+                    <page string="Configuración de API Coordinadora" invisible="delivery_type != 'coordinadora'">
+                        <group>
+                            <field name="coordinadora_use_api"/>
+                        </group>
+                        <group invisible="not coordinadora_use_api">
+                            <group string="Credenciales">
+                                <field name="coordinadora_client_id" required="coordinadora_use_api"/>
+                                <field name="coordinadora_user" required="coordinadora_use_api"/>
+                                <field name="coordinadora_password" password="1" required="coordinadora_use_api"/>
+                                <field name="coordinadora_apikey" required="coordinadora_use_api"/>
+                                <field name="coordinadora_tracking_password" password="1" required="coordinadora_use_api"/>
+                                <field name="coordinadora_nit" required="coordinadora_use_api"/>
+                                <field name="coordinadora_div" required="coordinadora_use_api"/>
+                            </group>
+                            <group string="Entorno y URLs">
+                                <field name="coordinadora_environment" widget="radio"/>
+                                <field name="coordinadora_ws_guias_test" invisible="coordinadora_environment != 'test'" required="coordinadora_environment == 'test' and coordinadora_use_api"/>
+                                <field name="coordinadora_ws_seguimiento_test" invisible="coordinadora_environment != 'test'" required="coordinadora_environment == 'test' and coordinadora_use_api"/>
+                                <field name="coordinadora_ws_guias_prod" invisible="coordinadora_environment != 'production'" required="coordinadora_environment == 'production' and coordinadora_use_api"/>
+                                <field name="coordinadora_ws_seguimiento_prod" invisible="coordinadora_environment != 'production'" required="coordinadora_environment == 'production' and coordinadora_use_api"/>
+                            </group>
+                        </group>
+                    </page>
                 </xpath>
             </field>
         </record>
