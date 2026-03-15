@@ -37,7 +37,7 @@
                             <field name="wsg_test_cod_cuenta_recaudo"/>
                         </group>
                     </page>
-                    <page string="Configuración de API Coordinadora" invisible="delivery_type != 'coordinadora'">
+                    <page string="Configuración de API Coordinadora">
                         <group>
                             <field name="coordinadora_use_api"/>
                         </group>
