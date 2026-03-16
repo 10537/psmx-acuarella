@@ -125,7 +125,10 @@ class DeliveryCarrier(models.Model):
 			return {'success': False, 'price': 0.0, 'error_message': str(e), 'warning_message': False}
 
 	def coordinadora_send_shipping(self, pickings):
-		"""Implement shipping label generation for Coordinadora."""
+		"""Implement shipping label generation for Coordinadora.
+		Since guide is generated at SO level, we just return the tracking and exact price
+		already computed.
+		"""
 		res = []
 		for picking in pickings:
 			self.ensure_one()
@@ -133,93 +136,25 @@ class DeliveryCarrier(models.Model):
 			if not self.coordinadora_use_api:
 				raise UserError("Coordinadora API is disabled but send_shipping was called.")
 
-			try:
-				client = self._get_coordinadora_client(ws_type='guias')
+			# If order already has tracking, we just return it
+			tracking_number = picking.sale_id.carrier_tracking_ref if picking.sale_id else picking.carrier_tracking_ref
+			
+			if tracking_number:
+				# Recalculate exact price locally if missing or fetch from SO
+				rate_res = self.coordinadora_rate_shipment(picking.sale_id) if picking.sale_id else {}
+				exact_price = rate_res['price'] if rate_res.get('success') else 0.0
+
+				res.append({
+					'exact_price': exact_price,
+					'tracking_number': tracking_number,
+				})
+			else:
+				# We don't implement picking-level guide generation yet as per logic it's done in SO
+				res.append({
+					'exact_price': 0.0,
+					'tracking_number': '',
+				})
 				
-				# Setup Sender & Receiver data
-				sender = picking.picking_type_id.warehouse_id.partner_id or self.company_id.partner_id
-				receiver = picking.partner_id
-				
-				sender_city = sender.city_id and sender.city_id.l10n_co_edi_code or '11001000'
-				receiver_city = receiver.city_id and receiver.city_id.l10n_co_edi_code or '11001000'
-				
-				request_data = {
-					'codigo_remision': '',
-					'fecha': fields.Date.today().strftime('%Y-%m-%d'),
-					'id_cliente': int(self.coordinadora_client_id),
-					'id_remitente': 0,
-					'nit_remitente': sender.vat or self.coordinadora_nit,
-					'nombre_remitente': sender.name,
-					'direccion_remitente': sender.street,
-					'telefono_remitente': sender.phone or sender.mobile,
-					'ciudad_remitente': sender_city,
-					'nit_destinatario': receiver.vat,
-					'div_destinatario': '01',
-					'nombre_destinatario': receiver.name,
-					'direccion_destinatario': receiver.street,
-					'ciudad_destinatario': receiver_city,
-					'telefono_destinatario': receiver.phone or receiver.mobile,
-					'valor_declarado': picking.sale_id.amount_total if picking.sale_id else 100000.0,
-					'codigo_cuenta': 1,
-					'codigo_producto': 0,
-					'nivel_servicio': 1,
-					'linea': '',
-					'contenido': picking.origin or 'Mercancia',
-					'referencia': picking.name,
-					'observaciones': picking.note or '',
-					'estado': 'PRE',
-					'detalle': {
-						'item': [{
-							'peso': float(picking.shipping_weight) or 1.0,
-							'alto': 10,
-							'ancho': 10,
-							'largo': 10,
-							'unidades': 1,
-							'referencia': picking.name
-						}]
-					},
-					'cuenta_contable': '',
-					'centro_costos': '',
-					'recaudos': '',
-					'margen_izquierdo': '',
-					'margen_superior': '',
-					'usuario_vmi': '',
-					'formato_impresion': '',
-					'atributo1_nombre': '',
-					'atributo1_valor': '',
-					'notificaciones': {
-						'item': [{
-							'tipo_medio': '1',
-							'destino_notificacion': receiver.email
-						}]
-					} if receiver.email else '',
-					'atributos_retorno': {
-						'item': [{'nombre': 'pdf_guia'}]
-					},
-					'nro_doc_radicados': '',
-					'nro_sobre': '',
-					'codigo_vendedor': '',
-					'usuario': self.coordinadora_user,
-					'clave': self.coordinadora_password
-				}
-				
-				response = client.service.Guias_generarGuia(p=request_data)
-				
-				# Parse response
-				if hasattr(response, 'codigo_remision'):
-					tracking_number = response.codigo_remision
-					
-					# Note: In a real integration we'd save response.pdf_guia as an attachment on the picking
-					
-					res.append({
-						'exact_price': 0.0,
-						'tracking_number': tracking_number,
-					})
-				else:
-					raise UserError(f"Coordinadora label generation failed: {response}")
-					
-			except Exception as e:
-				raise UserError(f"Error communicating with Coordinadora API: {e}")
 		return res
 
 	def coordinadora_get_tracking_link(self, picking):
@@ -251,3 +186,14 @@ class DeliveryCarrier(models.Model):
 			raise UserError(f"Error cancelling with Coordinadora API: {e}")
 
 
+
+class StockPicking(models.Model):
+	_inherit = 'stock.picking'
+
+	def _action_done(self):
+		res = super(StockPicking, self)._action_done()
+		for picking in self:
+			if picking.sale_id and picking.sale_id.carrier_tracking_ref and picking.carrier_id and picking.carrier_id.name in ['Coordinadora', 'coordinadora']:
+				if not picking.carrier_tracking_ref:
+					picking.carrier_tracking_ref = picking.sale_id.carrier_tracking_ref
+		return res
