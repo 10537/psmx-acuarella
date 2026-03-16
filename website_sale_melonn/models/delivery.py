@@ -69,6 +69,14 @@ class DeliveryCarrier(models.Model):
 		
 		return Client(wsdl)
 
+	def _normalize_city_code(self, city_code):
+		if not city_code:
+			return '11001000'
+		city_code = str(city_code).strip()
+		if len(city_code) <= 5:
+			return f"{city_code.zfill(5)}000"
+		return city_code
+
 	def coordinadora_rate_shipment(self, order):
 		"""Implement pricing calculation for Coordinadora."""
 		self.ensure_one()
@@ -81,7 +89,7 @@ class DeliveryCarrier(models.Model):
 			
 			# Extract required info from order
 			partner_shipping = order.partner_shipping_id
-			city = partner_shipping.city_id and partner_shipping.city_id.code or '11001000'
+			city = self._normalize_city_code(partner_shipping.city_id and partner_shipping.city_id.code or '11001000')
 			
 			# Simple sum of weights & volume (or standard box size if none)
 			total_weight = sum([line.product_id.weight * line.product_uom_qty for line in order.order_line]) or 1.0
@@ -102,7 +110,7 @@ class DeliveryCarrier(models.Model):
 				'recaudos': xsd.SkipValue,
 				'cnit': self.coordinadora_nit,
 				'cdiv': self.coordinadora_div,
-				'rcodigo_cm_ciudad': self.company_id.partner_id.city_id.code or '11001000',
+				'rcodigo_cm_ciudad': self._normalize_city_code(self.company_id.partner_id.city_id.code or '11001000'),
 				'dcodigo_cm_ciudad': city,
 				'codigo_cuenta': 1,
 				'valor_declarado': order.amount_total,
