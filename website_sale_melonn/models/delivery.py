@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from odoo import models, fields, api
+from zeep import xsd
 
 class DeliveryCarrier(models.Model):
 	_inherit = 'delivery.carrier'
@@ -98,7 +99,7 @@ class DeliveryCarrier(models.Model):
 					'nombre_empaque': '',
 				}],
 				'nivel_servicio': 1,
-				'recaudos': '',
+				'recaudos': xsd.SkipValue,
 				'cnit': self.coordinadora_nit,
 				'cdiv': self.coordinadora_div,
 				'rcodigo_cm_ciudad': self.company_id.partner_id.city_id.code or '11001000',
@@ -106,9 +107,9 @@ class DeliveryCarrier(models.Model):
 				'codigo_cuenta': 1,
 				'valor_declarado': order.amount_total,
 				'liquidacion_enguia': '',
-				'liquidacion_endespacho': '',
+				'liquidacion_endespacho': xsd.SkipValue,
 				'codigo_producto': 0,
-				'token': ''
+				'token': xsd.SkipValue
 			}
 
 			response = client.service.Sifa_liquidarSifa(p=request_data)

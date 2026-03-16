@@ -2,6 +2,7 @@
 
 from odoo import models, fields, api
 from odoo.exceptions import AccessError, UserError, ValidationError
+from zeep import xsd
 import requests
 from requests.auth import HTTPBasicAuth
 import json
@@ -124,7 +125,7 @@ class SaleOrder(models.Model):
 					}],
 					'cuenta_contable': '',
 					'centro_costos': '',
-					'recaudos': '',
+					'recaudos': xsd.SkipValue,
 					'margen_izquierdo': '',
 					'margen_superior': '',
 					'usuario_vmi': '',
@@ -134,7 +135,7 @@ class SaleOrder(models.Model):
 					'notificaciones': [{
 						'tipo_medio': '1',
 						'destino_notificacion': receiver.email
-					}] if receiver.email else '',
+					}] if receiver.email else xsd.SkipValue,
 					'atributos_retorno': [{'nombre': 'pdf_guia'}],
 					'nro_doc_radicados': '',
 					'nro_sobre': '',
