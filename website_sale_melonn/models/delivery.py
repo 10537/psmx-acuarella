@@ -87,16 +87,14 @@ class DeliveryCarrier(models.Model):
 			total_volume = sum([line.product_id.volume * line.product_uom_qty for line in order.order_line]) or 1.0
 
 			request_data = {
-				'detalle': {
-					'item': [{
-						'peso': float(total_weight),
-						'alto': 10,
-						'ancho': 10,
-						'largo': 10,
-						'unidades': 1,
-						'referencia': order.name,
-					}]
-				},
+				'detalle': [{
+					'peso': float(total_weight),
+					'alto': 10,
+					'ancho': 10,
+					'largo': 10,
+					'unidades': 1,
+					'referencia': order.name,
+				}],
 				'nivel_servicio': 1,
 				'recaudos': '',
 				'cnit': self.coordinadora_nit,

@@ -112,16 +112,14 @@ class SaleOrder(models.Model):
 					'referencia': order.name,
 					'observaciones': order.note or '',
 					'estado': 'PRE',
-					'detalle': {
-						'item': [{
-							'peso': float(total_weight),
-							'alto': 10,
-							'ancho': 10,
-							'largo': 10,
-							'unidades': 1,
-							'referencia': order.name
-						}]
-					},
+					'detalle': [{
+						'peso': float(total_weight),
+						'alto': 10,
+						'ancho': 10,
+						'largo': 10,
+						'unidades': 1,
+						'referencia': order.name
+					}],
 					'cuenta_contable': '',
 					'centro_costos': '',
 					'recaudos': '',
@@ -131,15 +129,11 @@ class SaleOrder(models.Model):
 					'formato_impresion': '',
 					'atributo1_nombre': '',
 					'atributo1_valor': '',
-					'notificaciones': {
-						'item': [{
-							'tipo_medio': '1',
-							'destino_notificacion': receiver.email
-						}]
-					} if receiver.email else '',
-					'atributos_retorno': {
-						'item': [{'nombre': 'pdf_guia'}]
-					},
+					'notificaciones': [{
+						'tipo_medio': '1',
+						'destino_notificacion': receiver.email
+					}] if receiver.email else '',
+					'atributos_retorno': [{'nombre': 'pdf_guia'}],
 					'nro_doc_radicados': '',
 					'nro_sobre': '',
 					'codigo_vendedor': '',
