@@ -73,9 +73,15 @@ class DeliveryCarrier(models.Model):
 		if not city_code:
 			return '11001000'
 		city_code = str(city_code).strip()
-		if len(city_code) <= 5:
-			return f"{city_code.zfill(5)}000"
-		return city_code
+		
+		# Coordinadora city code must be 8 digits
+		if len(city_code) == 8:
+			return city_code
+			
+		if city_code.endswith('000'):
+			return city_code.zfill(8)
+			
+		return f"{city_code.zfill(5)}000"
 
 	def coordinadora_rate_shipment(self, order):
 		"""Implement pricing calculation for Coordinadora."""
