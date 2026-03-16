@@ -209,3 +209,108 @@ class ShopifyGraphQL:
         response = self._fetch_orders_batch(query_template % params)
 
         return response.get('edges', [])
+
+    def fetch_all_inventory(self):
+        """
+        Fetches all inventory levels from Shopify using GraphQL pagination.
+        Returns a dict mapping Variant IDs and SKUs to their available quantities.
+        """
+        query = """
+        query($cursor: String) {
+          productVariants(first: 250, after: $cursor) {
+            pageInfo {
+              hasNextPage
+              endCursor
+            }
+            edges {
+              node {
+                id
+                sku
+                inventoryItem {
+                  inventoryLevels(first: 50) {
+                    edges {
+                      node {
+                        quantities(names: ["available"]) {
+                          quantity
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        """
+        
+        # Fallback to older GraphQL schema if quantities with 'names' is not supported
+        fallback_query = """
+        query($cursor: String) {
+          productVariants(first: 250, after: $cursor) {
+            pageInfo {
+              hasNextPage
+              endCursor
+            }
+            edges {
+              node {
+                id
+                sku
+                inventoryItem {
+                  inventoryLevels(first: 50) {
+                    edges {
+                      node {
+                        available
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        """
+        
+        result = {}
+        cursor = None
+        use_fallback = False
+        
+        while True:
+            variables = {'cursor': cursor} if cursor else {}
+            try:
+                response = self.execute(fallback_query if use_fallback else query, variables=variables)
+            except Exception as e:
+                # If the newer `quantities` field throws an error on older API versions, try fallback
+                if not use_fallback:
+                    use_fallback = True
+                    response = self.execute(fallback_query, variables=variables)
+                else:
+                    raise e
+                    
+            variants = response.get('data', {}).get('productVariants', {})
+            for edge in variants.get('edges', []):
+                node = edge.get('node', {})
+                variant_id = node.get('id', '').split('/')[-1]
+                sku = node.get('sku')
+                
+                available = 0
+                inventory_item = node.get('inventoryItem') or {}
+                for inv_edge in inventory_item.get('inventoryLevels', {}).get('edges', []):
+                    inv_node = inv_edge.get('node', {})
+                    if use_fallback:
+                        available += inv_node.get('available', 0)
+                    else:
+                        quantities = inv_node.get('quantities', [])
+                        if quantities:
+                            available += quantities[0].get('quantity', 0)
+                
+                if variant_id:
+                    result[variant_id] = available
+                if sku:
+                    result[sku] = available
+            
+            pageInfo = variants.get('pageInfo', {})
+            if not pageInfo.get('hasNextPage'):
+                break
+            cursor = pageInfo.get('endCursor')
+            
+        return result

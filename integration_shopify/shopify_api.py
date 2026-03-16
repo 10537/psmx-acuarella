@@ -665,6 +665,11 @@ class ShopifyAPIClient(AbsApiClient):
 
         return result
 
+    @check_scope('read_products', 'read_inventory')
+    def fetch_all_inventory(self):
+        _logger.info('Shopify "%s": fetch_all_inventory()', self._integration_name)
+        return self.gql.fetch_all_inventory()
+
     @check_scope(
         'write_fulfillments',
         'write_merchant_managed_fulfillment_orders',

@@ -277,3 +277,19 @@ class ShopifyWebhook(Controller, IntegrationWebhook):
 
     def _get_product_name(self, integration):
         return self._get_value_from_post_data('title')
+
+    @with_webhook_context
+    def _process_update_product(self, integration, external_product_id):
+        topic = self._get_hook_name_method()
+        if hasattr(integration, 'enforce_ssot') and integration.enforce_ssot:
+            _logger.warning('SSOT: Blocked %s webhook for integration %s', topic, integration.name)
+            return Response('Blocked by SSOT enforcement', status=200)
+        return super(ShopifyWebhook, self)._process_update_product(integration, external_product_id)
+
+    @with_webhook_context
+    def _process_delete_product(self, integration, external_product_id):
+        topic = self._get_hook_name_method()
+        if hasattr(integration, 'enforce_ssot') and integration.enforce_ssot:
+            _logger.warning('SSOT: Blocked %s webhook for integration %s', topic, integration.name)
+            return Response('Blocked by SSOT enforcement', status=200)
+        return super(ShopifyWebhook, self)._process_delete_product(integration, external_product_id)

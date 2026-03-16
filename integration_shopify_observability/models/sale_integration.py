@@ -11,11 +11,11 @@ _logger = StructuredLogger(__name__)
 class SaleIntegration(models.Model):
     _inherit = 'sale.integration'
 
-    def _prepare_inventory_data(self, product, ext_product, ext_location_id):
+    def _prepare_inventory_data(self, product, locations, ext_product, ext_location_id):
         """
         Override to inject StructuredLogger logging with tracking data.
         """
-        res = super(SaleIntegration, self)._prepare_inventory_data(product, ext_product, ext_location_id)
+        res = super(SaleIntegration, self)._prepare_inventory_data(product, locations, ext_product, ext_location_id)
         
         _logger.info(
             "Exporting inventory for Shopify.",
