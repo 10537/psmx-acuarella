@@ -82,8 +82,8 @@ class SaleOrder(models.Model):
 				sender = order.company_id.partner_id
 				receiver = order.partner_shipping_id
 				
-				sender_city = sender.city_id and sender.city_id.l10n_co_edi_code or '11001000'
-				receiver_city = receiver.city_id and receiver.city_id.l10n_co_edi_code or '11001000'
+				sender_city = sender.city_id and sender.city_id.code or '11001000'
+				receiver_city = receiver.city_id and receiver.city_id.code or '11001000'
 
 				total_weight = sum([line.product_id.weight * line.product_uom_qty for line in order.order_line if line.product_id.type != 'service']) or 1.0
 

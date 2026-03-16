@@ -80,7 +80,7 @@ class DeliveryCarrier(models.Model):
 			
 			# Extract required info from order
 			partner_shipping = order.partner_shipping_id
-			city = partner_shipping.city_id and partner_shipping.city_id.l10n_co_edi_code or '11001000'
+			city = partner_shipping.city_id and partner_shipping.city_id.code or '11001000'
 			
 			# Simple sum of weights & volume (or standard box size if none)
 			total_weight = sum([line.product_id.weight * line.product_uom_qty for line in order.order_line]) or 1.0
@@ -101,7 +101,7 @@ class DeliveryCarrier(models.Model):
 				'recaudos': '',
 				'cnit': self.coordinadora_nit,
 				'cdiv': self.coordinadora_div,
-				'rcodigo_cm_ciudad': self.company_id.partner_id.city_id.l10n_co_edi_code or '11001000',
+				'rcodigo_cm_ciudad': self.company_id.partner_id.city_id.code or '11001000',
 				'dcodigo_cm_ciudad': city,
 				'codigo_cuenta': 1,
 				'valor_declarado': order.amount_total,
