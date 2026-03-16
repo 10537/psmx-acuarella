@@ -88,12 +88,14 @@ class DeliveryCarrier(models.Model):
 
 			request_data = {
 				'detalle': [{
-					'peso': float(total_weight),
+					'ubl': 0,
 					'alto': 10,
 					'ancho': 10,
 					'largo': 10,
+					'peso': float(total_weight),
 					'unidades': 1,
 					'referencia': order.name,
+					'nombre_empaque': '',
 				}],
 				'nivel_servicio': 1,
 				'recaudos': '',
