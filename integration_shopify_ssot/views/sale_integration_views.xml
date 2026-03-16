@@ -7,13 +7,14 @@
         <field name="arch" type="xml">
             <!-- Add the enforce_ssot field to the settings. We will put it inside the notebook page or header -->
             <xpath expr="//header" position="after">
-                <widget name="web_ribbon" title="SSOT Enforced" bg_color="bg-success" invisible="not enforce_ssot or not is_integration_shopify"/>
+                <!-- <widget name="web_ribbon" title="SSOT Enforced" bg_color="bg-success" invisible="not enforce_ssot or not is_integration_shopify"/> -->
             </xpath>
             <xpath expr="//group[@name='integration_settings']" position="inside">
                 <field name="enforce_ssot" 
                        invisible="not is_integration_shopify" 
                        widget="boolean_toggle" 
                        groups="base.group_erp_manager"/>
+                <!-- <field name="enforce_ssot" invisible="not is_integration_shopify" widget="boolean_toggle"/> -->
             </xpath>
         </field>
     </record>

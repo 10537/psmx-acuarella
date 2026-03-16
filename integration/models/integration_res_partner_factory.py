@@ -302,7 +302,7 @@ class IntegrationResPartnerFactory(models.TransientModel):
         Sends notification emails about failed customer mapping using a separate database cursor.
         This ensures that the email is sent reliably, even if the main transaction is rolled back.
         """
-        db_registry = registry(self.env.cr.dbname)
+        db_registry = self.env.registry
         with db_registry.cursor() as new_cr:
             new_env = api.Environment(new_cr, self.env.uid, {})
             mail_template = new_env.ref('integration.mail_template_notify_failed_mapping')

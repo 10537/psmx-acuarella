@@ -1097,7 +1097,7 @@ class IntegrationResPartnerProxy(models.TransientModel):
         else:
             # Use Odoo's transaction mechanism for isolation
             if with_new_cursor:
-                db_registry = registry(self.env.cr.dbname)
+                db_registry = self.env.registry
                 with db_registry.cursor() as new_cr:
                     new_env = api.Environment(new_cr, self.env.uid, {})
                     integration_id = new_env['sale.integration'].browse(self.integration_id.id)

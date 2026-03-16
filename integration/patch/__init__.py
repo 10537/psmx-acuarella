@@ -164,3 +164,31 @@ def load_patch(reg, cr, module):
 
 Registry.load = load_patch
 Graph.add_modules = add_modules_patch
+
+
+# Patch odoo.service.server.CronThread.cron_thread to fix 'OrderedDict mutated during iteration'
+# This error occurs because CronThread iterates over registries.d.items()
+# while other threads might trigger LRU updates on registries.d.
+try:
+    from odoo.service import server as server_module
+
+    if hasattr(server_module, 'CronThread'):
+        _original_cron_thread = server_module.CronThread.cron_thread
+
+        def _cron_thread_patched(self, i):
+            from odoo.modules.registry import Registry
+            registries = Registry.registries
+
+            # We temporarily substitute 'registries.d.items' with a lambda that returns a list.
+            # This ensures that when cron_thread calls it, it gets a static list to iterate over.
+            original_items = registries.d.items
+            registries.d.items = lambda: list(original_items())
+            try:
+                return _original_cron_thread(self, i)
+            finally:
+                registries.d.items = original_items
+
+        server_module.CronThread.cron_thread = _cron_thread_patched
+        _logger.info('Patched odoo.service.server.CronThread.cron_thread to avoid OrderedDict mutation error')
+except (ImportError, AttributeError) as e:
+    _logger.warning('Could not patch odoo.service.server.CronThread.cron_thread: %s', e)

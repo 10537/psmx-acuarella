@@ -231,6 +231,22 @@ class SaleIntegration(models.Model):
             'ideal for batch updating stock levels.'
         ),
     )
+    # Temporary bridge fields to allow the registry to load when the DB is out of sync
+    # We make them non-stored compute fields to avoid them being included in the SELECT query
+    synchronize_all_inventory_periodically = fields.Boolean(
+        string='(Stale) Synchronize All Inventory Periodically',
+        compute='_compute_stale_bridge_fields',
+    )
+    enforce_ssot = fields.Boolean(
+        string='(Stale) Enforce SSOT',
+        compute='_compute_stale_bridge_fields',
+    )
+
+    def _compute_stale_bridge_fields(self):
+        for rec in self:
+            rec.synchronize_all_inventory_periodically = False
+            rec.enforce_ssot = False
+
     next_inventory_synchronization_date = fields.Datetime(
         string='Next Synchronization Date',
         compute='_compute_next_inventory_synchronization_date',
@@ -2395,7 +2411,7 @@ class SaleIntegration(models.Model):
         limit = self.get_external_block_limit()
         total_blocks = (len(template_ids) + limit - 1) // limit
 
-        db_registry = Registry(self.env.cr.dbname)
+        db_registry = self.env.registry
 
         for block_num in range(total_blocks):
             start_idx = block_num * limit
@@ -6143,7 +6159,7 @@ class SaleIntegration(models.Model):
 
     def _save_log(self, vals):
         try:
-            with Registry(self.env.cr.dbname).cursor() as cr:
+            with self.env.registry.cursor() as cr:
                 env = api.Environment(cr, SUPERUSER_ID, {})
                 log = env['integration.logging'].create(vals)
         except Exception:
