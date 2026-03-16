@@ -43,6 +43,9 @@ class StructuredLogger:
         self.log(logging.WARNING, message, *args, **kwargs)
 
     def error(self, message, *args, **kwargs):
+        # MEDIO-05: Ensure exc_info is included by default if we are in an exception handler
+        if kwargs.get('exc_info') is None:
+            kwargs['exc_info'] = True
         self.log(logging.ERROR, message, *args, **kwargs)
 
     def debug(self, message, *args, **kwargs):

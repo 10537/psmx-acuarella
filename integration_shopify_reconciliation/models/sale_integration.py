@@ -52,9 +52,16 @@ class SaleIntegration(models.Model):
         )
         external_mappings = ProductProductExternal.search([('integration_id', '=', self.id)])
         
+        # MEDIO-02: Prefetch all products in a single operation to avoid N+1 queries
+        products = external_mappings.mapped('product_id')
+        # Trigger mass prefetch of inventory fields for all products in this batch
+        products.mapped('qty_available')
+        products.mapped('outgoing_qty')
+
         for mapping in external_mappings:
             product = mapping.product_id
-            if product.type not in ('consu', 'product'):
+            # MEDIO-01: Fix filter logic and Odoo 18 compatibility
+            if not (product.type == 'consu' and product.is_storable):
                 continue
                 
             # Shopify returns inventory by code or by variant id based on fetch_all_inventory implementation
@@ -92,14 +99,16 @@ class SaleIntegration(models.Model):
         """
         Hook for reconciling products.
         """
+        # MEDIO-04: Implement stub warning
         self.ensure_one()
-        # To be extended with product reconciliation logic
+        _logger.warning("Method '_reconcile_products' is currently a stub and performs no action for integration %s.", self.name)
         pass
 
     def _reconcile_orders(self):
         """
         Hook for reconciling orders.
         """
+        # MEDIO-04: Implement stub warning
         self.ensure_one()
-        # To be extended with orders reconciliation logic
+        _logger.warning("Method '_reconcile_orders' is currently a stub and performs no action for integration %s.", self.name)
         pass

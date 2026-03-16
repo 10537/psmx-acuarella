@@ -2125,10 +2125,12 @@ class SaleIntegration(models.Model):
         self.ensure_one()
 
         if not self.location_line_ids:
-            wh_ids = self.env['stock.warehouse'].search([
-                ('company_id', '=', self.company_id.id)
-            ])
-            return wh_ids.mapped('lot_stock_id')
+            _logger.warning(
+                'Integration "%s": No location lines defined. '
+                'Stock synchronization will be skipped to prevent accidental sync of all warehouse locations.',
+                self.name
+            )
+            return self.env['stock.location']
 
         return self.location_line_ids.mapped('erp_location_id')
 
