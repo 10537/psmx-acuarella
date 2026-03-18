@@ -31,10 +31,6 @@ class SaleOrder(models.Model):
 	guia_envia_url = fields.Char("Guía envía URL")
 	guia_envia = fields.Char("Guía envía")
 
-	# Coordinadora Ext.
-	carrier_tracking_ref = fields.Char(string='Tracking Reference', copy=False)
-	carrier_tracking_url = fields.Char(string='Tracking URL', copy=False)
-
 	def action_generar_guia(self):
 		"""
 		Función para generar guías de acuerdo al campo carrier_id
@@ -52,133 +48,11 @@ class SaleOrder(models.Model):
 						'view_type': 'form',
 						'target': 'new'
 					}
-				elif order.carrier_id.name in ['Coordinadora', 'coordinadora']:
-					order._send_by_coordinadora()
 				else:
 					order._send_by_melonn()
 			else:
 				raise UserError("Este pedido no tiene configurado el método de entrega")
 			return True
-
-	def _send_by_coordinadora(self):
-		for order in self:
-			if order.state not in ['sale', 'done']:
-				raise UserError("Para generar la guía de Coordinadora, la orden debe estar confirmada (tener orden de entrega en estado listo).")
-			
-			if order.carrier_tracking_ref:
-				raise UserError("Ya existe una guía generada para esta orden.")
-
-			# 1. Cotizar y agregar monto en la orden de venta (producto configurado en el transportista)
-			res_rate = order.carrier_id.coordinadora_rate_shipment(order)
-			if not res_rate.get('success'):
-				raise UserError(f"Error cotizando con Coordinadora: {res_rate.get('error_message')}")
-			
-			# Agrega la línea usando la funcionalidad estándar de Odoo
-			order.set_delivery_line(order.carrier_id, res_rate['price'])
-
-			# 2. Generar la guía directamente usando el cliente zeep
-			try:
-				client = order.carrier_id._get_coordinadora_client(ws_type='guias')
-				
-				sender = order.company_id.partner_id
-				receiver = order.partner_shipping_id
-				
-				sender_city = order.carrier_id._normalize_city_code(sender.city_id and sender.city_id.code or '11001000')
-				receiver_city = order.carrier_id._normalize_city_code(receiver.city_id and receiver.city_id.code or '11001000')
-
-				total_weight = sum([line.product_id.weight * line.product_uom_qty for line in order.order_line if line.product_id.type != 'service']) or 1.0
-
-				request_data = {
-					'codigo_remision': '',
-					'fecha': fields.Date.today().strftime('%Y-%m-%d'),
-					'id_cliente': int(order.carrier_id.coordinadora_client_id),
-					'id_remitente': 0,
-					'nit_remitente': sender.vat or order.carrier_id.coordinadora_nit,
-					'nombre_remitente': sender.name,
-					'direccion_remitente': sender.street,
-					'telefono_remitente': sender.phone or sender.mobile,
-					'ciudad_remitente': sender_city,
-					'nit_destinatario': receiver.vat,
-					'div_destinatario': '01',
-					'nombre_destinatario': receiver.name,
-					'direccion_destinatario': receiver.street,
-					'ciudad_destinatario': receiver_city,
-					'telefono_destinatario': receiver.phone or receiver.mobile,
-					'valor_declarado': order.amount_total,
-					'codigo_cuenta': 1,
-					'codigo_producto': 0,
-					'nivel_servicio': 1,
-					'linea': '',
-					'contenido': order.client_order_ref or 'Mercancia',
-					'referencia': order.name,
-					'observaciones': order.note or '',
-					'estado': 'PRE',
-					'detalle': [{
-						'ubl': 0,
-						'alto': 10,
-						'ancho': 10,
-						'largo': 10,
-						'peso': float(total_weight),
-						'unidades': 1,
-						'referencia': order.name,
-						'nombre_empaque': '',
-					}],
-					'cuenta_contable': '',
-					'centro_costos': '',
-					'recaudos': xsd.SkipValue,
-					'margen_izquierdo': '',
-					'margen_superior': '',
-					'usuario_vmi': '',
-					'formato_impresion': '',
-					'atributo1_nombre': '',
-					'atributo1_valor': '',
-					'notificaciones': [{
-						'tipo_medio': '1',
-						'destino_notificacion': receiver.email
-					}] if receiver.email else xsd.SkipValue,
-					'atributos_retorno': [{'nombre': 'pdf_guia'}],
-					'nro_doc_radicados': '',
-					'nro_sobre': '',
-					'codigo_vendedor': '',
-					'usuario': order.carrier_id.coordinadora_user,
-					'clave': order.carrier_id.coordinadora_password
-				}
-				
-				response = client.service.Guias_generarGuia(p=request_data)
-				
-				if hasattr(response, 'codigo_remision'):
-					tracking_number = response.codigo_remision
-					tracking_url = f"https://www.coordinadora.com/portafolio-de-servicios/servicios-en-linea/rastrear-guias/?guia={tracking_number}"
-					
-					order.write({
-						'carrier_tracking_ref': tracking_number,
-						'carrier_tracking_url': tracking_url
-					})
-
-					pdf_base64 = getattr(response, 'pdf_guia', False)
-					if pdf_base64:
-						order.env['ir.attachment'].create({
-							'name': f"Guia_Coordinadora_{tracking_number}.pdf",
-							'type': 'binary',
-							'datas': pdf_base64,
-							'res_model': 'sale.order',
-							'res_id': order.id,
-							'mimetype': 'application/pdf',
-						})
-					
-					# 3. Propagar al picking actual si existe (caso de que se haya creado ya el albarán de salida)
-					pickings = order.picking_ids.filtered(lambda p: p.state not in ('draft', 'cancel', 'done'))
-					for picking in pickings:
-						picking.write({
-							'carrier_tracking_ref': tracking_number,
-							'carrier_id': order.carrier_id.id,
-						})
-						
-				else:
-					raise UserError(f"Falló la generación de etiqueta Coordinadora: {response}")
-					
-			except Exception as e:
-				raise UserError(f"Error comunicando con Coordinadora API: {e}")
 
 	def _send_by_melonn(self):
 		INVOKE_URL = self.carrier_id.url_sale_order_melonn

@@ -17,8 +17,6 @@
 						<group>
 							<field name="guia_envia" readonly="1"/>
 							<field name="guia_envia_url" readonly="1" widget="url"/>
-							<field name="carrier_tracking_ref" readonly="1" string="Guía Coordinadora (o General)"/>
-							<field name="carrier_tracking_url" readonly="1" widget="url" string="URL Rastreo"/>
 						</group>
 					</page>
 				</xpath>
