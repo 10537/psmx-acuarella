@@ -64,8 +64,20 @@ class DeliveryCarrier(models.Model):
             return city_code.zfill(8)
             
         return f"{city_code.zfill(5)}000"
+    
+    @api.depends('delivery_type')
+    def _compute_can_generate_return(self):
+        super()._compute_can_generate_return()
+        for carrier in self.filtered(lambda c: c.delivery_type == 'coordinadora'):
+            carrier.can_generate_return = True
 
-    def coordinadora_get_shipping_price(self, order):
+    @api.depends('delivery_type')
+    def _compute_supports_shipping_insurance(self):
+        super()._compute_supports_shipping_insurance()
+        for carrier in self.filtered(lambda c: c.delivery_type == 'coordinadora'):
+            carrier.supports_shipping_insurance = True
+
+    def coordinadora_rate_shipment(self, order):
         """Implement pricing calculation for Coordinadora correctly.
         Usando Cotizador_cotizar (WebService Seguimiento - AGS).
         """
@@ -82,6 +94,7 @@ class DeliveryCarrier(models.Model):
             dest_city = self._normalize_city_code(partner_shipping.city_id and partner_shipping.city_id.code or '11001000')
             
             total_weight = sum([line.product_id.weight * line.product_uom_qty for line in order.order_line if line.product_id.type != 'service']) or 1.0
+            total_product = len([line.product_id.default_code for line in order.order_line if line.product_id.type != 'service'])
 
             if not self.coordinadora_client_id or not self.coordinadora_nit:
                 return {'success': False, 'price': 0.0, 'error_message': 'Please configure Client ID and NIT in the carrier settings.', 'warning_message': False}
@@ -90,24 +103,26 @@ class DeliveryCarrier(models.Model):
                 'nit': self.coordinadora_nit,
                 'div': self.coordinadora_div or '01',
                 'cuenta': int(self.coordinadora_client_id),
-                'producto': 0,
+                'producto': "0",
                 'origen': origin_city,
                 'destino': dest_city,
-                'valoracion': order.amount_total,
-                'nivel_servicio': {'item': []},
+                'valoracion': int(order.amount_total),
+                'nivel_servicio': xsd.SkipValue,
                 'detalle': {
                     'item': [{
-                        'ubl': 0,
+                        'ubl': 1,
                         'alto': 10,
                         'ancho': 10,
                         'largo': 10,
                         'peso': float(total_weight),
-                        'unidades': 1,
+                        'unidades': int(total_product),
                     }]
                 },
                 'apikey': self.coordinadora_apikey,
                 'clave': self.coordinadora_tracking_password
             }
+
+            _logger.info(f"Request data: {request_data}")
 
             response = client.service.Cotizador_cotizar(p=request_data)
             
@@ -115,6 +130,7 @@ class DeliveryCarrier(models.Model):
                 return {
                     'success': True,
                     'price': float(response.flete_total),
+                    'carrier_price': float(response.flete_total),
                     'error_message': False,
                     'warning_message': False
                 }
@@ -232,7 +248,7 @@ class DeliveryCarrier(models.Model):
                         order.message_post(body=f"Guía Coordinadora generada: {tracking_number}", attachment_ids=[attachment.id])
                     
                     res.append({
-                        'exact_price': self.coordinadora_get_shipping_price(order)['price'],
+                        'exact_price': self.coordinadora_rate_shipment(order)['price'],
                         'tracking_number': tracking_number,
                     })
                 else:
