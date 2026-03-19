@@ -102,7 +102,7 @@ class DeliveryCarrier(models.Model):
             request_data = {
                 'nit': self.coordinadora_nit,
                 'div': self.coordinadora_div or '01',
-                'cuenta': int(self.coordinadora_client_id),
+                'cuenta': "02",
                 'producto': "0",
                 'origen': origin_city,
                 'destino': dest_city,
@@ -123,6 +123,8 @@ class DeliveryCarrier(models.Model):
             }
 
             _logger.info(f"Request data: {request_data}")
+            _logger.info(f"Client: {client.wsdl.location}")
+            _logger.info(f"Client Active Service: {client.service._binding_options['address']}")
 
             response = client.service.Cotizador_cotizar(p=request_data)
             
@@ -170,7 +172,8 @@ class DeliveryCarrier(models.Model):
                     'codigo_remision': '',
                     'fecha': '', # Vacío según el ejemplo
                     'id_cliente': int(self.coordinadora_client_id),
-                    'id_remitente': 0,
+                    'id_remitente': '',
+                    'nit_remitente': self.coordinadora_nit or '',
                     'nombre_remitente': sender.name,
                     'direccion_remitente': sender.street or '',
                     'telefono_remitente': (sender.phone or sender.mobile or '0')[:10],
@@ -182,7 +185,7 @@ class DeliveryCarrier(models.Model):
                     'ciudad_destinatario': receiver_city,
                     'telefono_destinatario': (receiver.phone or receiver.mobile or '0')[:10],
                     'valor_declarado': order.amount_total,
-                    'codigo_cuenta': 1,
+                    'codigo_cuenta': 2,
                     'codigo_producto': 0,
                     'nivel_servicio': 1,
                     'linea': '',
@@ -190,39 +193,48 @@ class DeliveryCarrier(models.Model):
                     'referencia': order.name,
                     'observaciones': (order.note or '')[:100],
                     'estado': 'IMPRESO',
-                    'detalle': {
-                        'item': [{
-                            'ubl': 0,
-                            'alto': 10,
-                            'ancho': 10,
-                            'largo': 10,
-                            'peso': float(total_weight),
-                            'unidades': 1,
-                            'referencia': '',
-                            'nombre_empaque': '',
-                        }]
-                    },
+                    'detalle': [{
+                        'ubl': 0,
+                        'alto': 10,
+                        'ancho': 10,
+                        'largo': 10,
+                        'peso': float(total_weight),
+                        'unidades': 1,
+                        'referencia': '',
+                        'nombre_empaque': '',
+                    }],
                     'cuenta_contable': '',
                     'centro_costos': '',
                     'recaudos': xsd.SkipValue,
                     'margen_izquierdo': 0,
                     'margen_superior': 0,
-                    'id_rotulo': xsd.SkipValue,
                     'usuario_vmi': '',
                     'formato_impresion': '',
                     'atributo1_nombre': '',
                     'atributo1_valor': '',
                     'notificaciones': xsd.SkipValue,
                     'atributos_retorno': {
-                        'item': [{'nombre': 'pdf_guia'}]
+                        'nit': '',
+                        'div': '',
+                        'nombre': 'pdf_guia',
+                        'direccion': '',
+                        'codigo_ciudad': '',
+                        'telefono': '',
                     },
                     'nro_doc_radicados': '',
                     'nro_sobre': '',
+                    'codigo_vendedor': 0,
                     'usuario': self.coordinadora_user,
                     'clave': self.coordinadora_password
                 }
 
+                _logger.info(f"Tracking Request data: {request_data}")
+                _logger.info(f"Tracking Client: {client.wsdl.location}")
+                _logger.info(f"Tracking Client Active Service: {client.service._binding_options['address']}")
+                
                 response = client.service.Guias_generarGuia(p=request_data)
+
+                _logger.info(f"Tracking Response: {response}")
                 
                 if hasattr(response, 'codigo_remision'):
                     tracking_number = response.codigo_remision
