@@ -237,15 +237,10 @@ class SaleIntegration(models.Model):
         string='(Stale) Synchronize All Inventory Periodically',
         compute='_compute_stale_bridge_fields',
     )
-    enforce_ssot = fields.Boolean(
-        string='(Stale) Enforce SSOT',
-        compute='_compute_stale_bridge_fields',
-    )
 
     def _compute_stale_bridge_fields(self):
         for rec in self:
             rec.synchronize_all_inventory_periodically = False
-            rec.enforce_ssot = False
 
     next_inventory_synchronization_date = fields.Datetime(
         string='Next Synchronization Date',
