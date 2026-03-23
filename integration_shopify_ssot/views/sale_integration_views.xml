@@ -11,8 +11,7 @@
             <xpath expr="//group[@name='integration_settings']" position="inside">
                 <field name="enforce_ssot" 
                        invisible="not is_integration_shopify" 
-                       widget="boolean_toggle" 
-                       groups="base.group_erp_manager"/>
+                       widget="boolean_toggle" />
             </xpath>
         </field>
     </record>
