@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
 from odoo import models
-import logging
+from odoo.addons.integration_shopify_observability.tools.logging_helper import StructuredLogger
 
-_logger = logging.getLogger(__name__)
+_logger = StructuredLogger(__name__)
 
 
 class SaleIntegration(models.Model):
@@ -38,7 +38,10 @@ class SaleIntegration(models.Model):
                     on_hand,
                     reserved,
                     free_to_use,
-                    res.get('qty', 0.0)
+                    res.get('qty', 0.0),
+                    integration_id=self.id,
+                    entity_type='product',
+                    entity_id=product.id,
                 )
 
                 res['qty'] = free_to_use

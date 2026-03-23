@@ -1,0 +1,41 @@
+[loggers]
+keys=root,werkzeug,odoo
+
+[handlers]
+keys=console,file
+
+[formatters]
+keys=json,standard
+
+[logger_root]
+level=INFO
+handlers=console
+
+[logger_werkzeug]
+level=INFO
+handlers=console
+qualname=werkzeug
+
+[logger_odoo]
+level=INFO
+handlers=console
+qualname=odoo
+
+[handler_console]
+class=StreamHandler
+level=INFO
+formatter=json
+args=(sys.stdout,)
+
+[handler_file]
+class=FileHandler
+level=INFO
+formatter=json
+args=('/var/log/odoo/odoo-server.log', 'a')
+
+[formatter_json]
+format={"time": "%(asctime)s", "level": "%(levelname)s", "name": "%(name)s", "message": "%(message)s", "correlation_id": "%(correlation_id)s", "integration_id": "%(integration_id)s", "entity_type": "%(entity_type)s", "entity_id": "%(entity_id)s"}
+datefmt=%Y-%m-%d %H:%M:%S
+
+[formatter_standard]
+format=%(asctime)s %(levelname)s %(name)s: %(message)s - [corr_id:%(correlation_id)s] [int:%(integration_id)s] [ent:%(entity_type)s:%(entity_id)s]

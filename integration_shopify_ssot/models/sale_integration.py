@@ -13,7 +13,7 @@ class SaleIntegration(models.Model):
         help="If enabled, Odoo is strictly enforced as the single source of truth. Destructive webhooks and unmapped locations are blocked."
     )
 
-    @api.constrains('webhook_line_ids')
+    @api.constrains('webhook_line_ids', 'enforce_ssot')
     def _check_ssot_webhooks(self):
         """
         Prevent destructive webhooks (products/update, products/delete)
@@ -29,7 +29,7 @@ class SaleIntegration(models.Model):
                             f"as they could overwrite changes made in Odoo. Please deactivate them."
                         )
 
-    @api.constrains('location_line_ids')
+    @api.constrains('location_line_ids', 'enforce_ssot')
     def _check_location_mapping(self):
         """
         Ensure all active external locations are mapped to an Odoo warehouse/location.
