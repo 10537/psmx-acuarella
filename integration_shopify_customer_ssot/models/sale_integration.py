@@ -49,6 +49,21 @@ class SaleIntegration(models.Model):
         if not partner.active:
             tags.append("DISABLED")
 
+        address_payload = {
+            "address1": partner.street or "",
+            "address2": partner.street2 or "",
+            "city": partner.city or "",
+            "zip": partner.zip or "",
+            "firstName": first_name,
+            "lastName": last_name,
+            "company": company_name,
+            "phone": partner.phone or "",
+        }
+        if partner.country_id:
+            address_payload["countryCode"] = partner.country_id.code
+        if partner.state_id:
+            address_payload["provinceCode"] = partner.state_id.code
+
         variables = {
             "input": {
                 "firstName": first_name,
@@ -59,11 +74,10 @@ class SaleIntegration(models.Model):
             }
         }
         
-        # Optional: Add company name if applicable
-        # Note: Shopify GraphQL CustomerInput does not have a direct 'company' field for customers,
-        # it has it under addresses. However, for Mayorista we might map notes or tags.
-        # But we'll follow the simplest spec for now.
-        
+        # Inject address list
+        if address_payload:
+            variables["input"]["addresses"] = [address_payload]
+
         client = self._get_shopify_graphql_client()
 
         # Check mapping
@@ -119,7 +133,22 @@ class SaleIntegration(models.Model):
                     })
 
         if customer_gid:
-            # UPDATE
+            # Prepare UPDATE and deduplicate Addresses
+            if address_payload:
+                address_query = """
+                    query customerAddress($id: ID!) {
+                        customer(id: $id) {
+                            defaultAddress { id }
+                        }
+                    }
+                """
+                res_addr = client.execute(address_query, {"id": customer_gid})
+                default_address = res_addr.get('data', {}).get('customer', {}).get('defaultAddress')
+                if default_address and default_address.get('id'):
+                    address_payload["id"] = default_address["id"]
+                
+                variables["input"]["addresses"] = [address_payload]
+
             variables["input"]["id"] = customer_gid
             query_update = """
                 mutation customerUpdate($input: CustomerInput!) {

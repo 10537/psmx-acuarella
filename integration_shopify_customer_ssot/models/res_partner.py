@@ -42,7 +42,7 @@ class ResPartner(models.Model):
                 
                 # We enqueue the job on the integration model to utilize its context
                 # Odoo's queue_job automatically captures the context
-                job = integration.with_context(correlation_id=corr_id).with_delay().sync_shopify_customer(partner.id)
+                job = integration.with_context(correlation_id=corr_id).with_delay(description=f"Sync Customer: {partner.name}").sync_shopify_customer(partner.id)
                 partner.with_context(default_integration_id=integration.id).job_log(job)
 
     @api.model_create_multi
@@ -89,7 +89,7 @@ class ResPartner(models.Model):
                 correlation_id_var.set(corr_id)
                 
                 _logger.info("Enqueuing deletion of Shopify customers: %s", codes, integration_id=integration.id)
-                job = integration.with_context(correlation_id=corr_id).with_delay().delete_shopify_customer(codes)
+                job = integration.with_context(correlation_id=corr_id).with_delay(description=f"Delete Shopify Customer: {codes}").delete_shopify_customer(codes)
                 integration.job_log(job)
 
         return super(ResPartner, self).unlink()
