@@ -212,8 +212,8 @@ class SaleIntegration(models.Model):
         """
         client = self._get_shopify_graphql_client()
         query_delete = """
-            mutation customerDelete($id: ID!) {
-                customerDelete(id: $id) {
+            mutation customerDelete($input: CustomerDeleteInput!) {
+                customerDelete(input: $input) {
                     deletedCustomerId
                     userErrors { field message }
                 }
@@ -222,7 +222,7 @@ class SaleIntegration(models.Model):
 
         for ext_code in shopify_external_codes:
             gid = f"gid://shopify/Customer/{ext_code}" if not ext_code.startswith('gid://') else ext_code
-            res = client.execute(query_delete, {"id": gid})
+            res = client.execute(query_delete, {"input": {"id": gid}})
             errors = res.get('data', {}).get('customerDelete', {}).get('userErrors', [])
             if errors:
                 raise UserError(f"Error deleting customer {gid} in Shopify: {errors}")
