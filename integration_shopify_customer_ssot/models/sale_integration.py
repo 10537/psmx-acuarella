@@ -76,7 +76,7 @@ class SaleIntegration(models.Model):
         
         if mapping:
             # Format the ID into a Shopify GID: gid://shopify/Customer/123456
-            ext_id = mapping.external_customer_id.code
+            ext_id = mapping.external_partner_id.code
             if not ext_id.startswith('gid://'):
                 customer_gid = f"gid://shopify/Customer/{ext_id}"
             else:
@@ -115,7 +115,7 @@ class SaleIntegration(models.Model):
                     MappingModel.create({
                         'integration_id': self.id,
                         'partner_id': partner.id,
-                        'external_customer_id': ext_record.id,
+                        'external_partner_id': ext_record.id,
                     })
 
         if customer_gid:
@@ -173,7 +173,7 @@ class SaleIntegration(models.Model):
                     MappingModel.create({
                         'integration_id': self.id,
                         'partner_id': partner.id,
-                        'external_customer_id': ext_record.id,
+                        'external_partner_id': ext_record.id,
                     })
                 _logger.info("Successfully created customer %s in Shopify.", partner.name, integration_id=self.id, entity_type='partner', entity_id=partner.id)
 

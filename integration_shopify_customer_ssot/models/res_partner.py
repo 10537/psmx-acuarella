@@ -77,7 +77,7 @@ class ResPartner(models.Model):
                     ('partner_id', 'in', self.ids)
                 ])
                 if mappings:
-                    codes = mappings.mapped('external_customer_id.code')
+                    codes = mappings.mapped('external_partner_id.code')
                     if codes:
                         integration_to_deletes[integration] = codes
             
