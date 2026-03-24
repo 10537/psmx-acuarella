@@ -190,6 +190,39 @@ class ShopifyWebhook(Controller, IntegrationWebhook):
         return vals
 
     @with_webhook_context
+    def _process_create_order(self, integration, external_order_id):
+        """"
+        Process create order event overriding base class to pass missing arguments
+        """
+        _logger.info(f'Call {integration.name} webhook controller: _process_create_order')
+
+        if not integration.is_order_import_enabled:
+            message = f'Order import is disabled for integration {integration.name} or integration is not active.'
+            _logger.info(message)
+            return Response(message)
+
+        data = self._prepare_pipeline_data(integration, external_order_id)
+
+        if not integration.is_importable_order_status(data['integration_workflow_states']):
+            message = f'Order with code={external_order_id} is not in the expected status.'
+            _logger.info(message)
+            return Response(message)
+
+        # Check cut-off date if configured
+        date_order = data.get('date_order')
+        if not integration.is_importable_order_date(date_order):
+            message = (
+                f'Order with code={external_order_id} was created before the cut-off date '
+                f'({integration.orders_cut_off_datetime}). Order creation date: {date_order}.'
+            )
+            _logger.info(message)
+            return Response(message)
+
+        integration.fetch_order_by_id_with_delay(external_order_id)
+
+        return Response(f'Job created for order with code={external_order_id}. Action: create order')
+
+    @with_webhook_context
     def _process_cancel_order(self, integration, external_order_id):
         _logger.info(f'Call {integration.name} webhook controller: _process_cancel_order')
         data = self._prepare_pipeline_data(integration, external_order_id)
