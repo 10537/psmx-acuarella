@@ -2,6 +2,7 @@
 
 import json
 from odoo import models, api
+from odoo.exceptions import UserError
 from odoo.addons.integration_shopify_observability.tools.logging_helper import StructuredLogger
 
 _logger = StructuredLogger(__name__)
@@ -45,7 +46,8 @@ class SaleIntegration(models.Model):
             first_name = parts[0]
             last_name = parts[1] if len(parts) > 1 else "-"
 
-        state_str = "ENABLED" if partner.active else "DISABLED"
+        if not partner.active:
+            tags.append("DISABLED")
 
         variables = {
             "input": {
@@ -54,7 +56,6 @@ class SaleIntegration(models.Model):
                 "email": partner.email,
                 "phone": partner.phone or "",
                 "tags": tags,
-                "state": state_str,
             }
         }
         
@@ -131,7 +132,7 @@ class SaleIntegration(models.Model):
             res = client.execute(query_update, variables)
             errors = res.get('data', {}).get('customerUpdate', {}).get('userErrors', [])
             if errors:
-                _logger.error("Error updating customer %s in Shopify: %s", partner.name, errors, integration_id=self.id, entity_type='partner', entity_id=partner.id)
+                raise UserError(f"Error updating customer {partner.name} in Shopify: {errors}")
             else:
                 _logger.info("Successfully updated customer %s in Shopify.", partner.name, integration_id=self.id, entity_type='partner', entity_id=partner.id)
         else:
@@ -156,7 +157,7 @@ class SaleIntegration(models.Model):
                 return
 
             if errors:
-                _logger.error("Error creating customer %s in Shopify: %s", partner.name, errors, integration_id=self.id, entity_type='partner', entity_id=partner.id)
+                raise UserError(f"Error creating customer {partner.name} in Shopify: {errors}")
             else:
                 # Save mapping
                 new_gid = data.get('customer', {}).get('id')
@@ -195,6 +196,6 @@ class SaleIntegration(models.Model):
             res = client.execute(query_delete, {"id": gid})
             errors = res.get('data', {}).get('customerDelete', {}).get('userErrors', [])
             if errors:
-                _logger.error("Error deleting customer %s in Shopify: %s", gid, errors, integration_id=self.id)
+                raise UserError(f"Error deleting customer {gid} in Shopify: {errors}")
             else:
                 _logger.info("Successfully deleted Shopify customer %s", gid, integration_id=self.id)
