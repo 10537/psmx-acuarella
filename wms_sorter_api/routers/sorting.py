@@ -38,7 +38,7 @@ def _move_lines_to_items(move_lines) -> list[SortingItem]:
             SortingItem(
                 order=product.default_code or "",
                 sn=product.barcode or "",
-                num=int(line.reserved_qty or line.qty_done or 0),
+                num=int(line.quantity or line.qty_done or 0),
                 chute=chute,
             )
         )

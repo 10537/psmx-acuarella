@@ -100,7 +100,7 @@ class StockPickingBatch(models.Model):
                 {
                     "order": product.default_code or "",
                     "sn": product.barcode or "",
-                    "num": int(move_line.reserved_qty or move_line.qty_done or 0),
+                    "num": int(move_line.quantity or move_line.qty_done or 0),
                     "chute": chute,
                 }
             )
