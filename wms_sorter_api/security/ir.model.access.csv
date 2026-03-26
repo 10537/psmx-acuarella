@@ -1,4 +1,4 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_wms_sorter_log_admin,wms.sorter.log.admin,model_wms_sorter_log,base.group_system,1,1,1,1
 access_wms_sorter_log_user,wms.sorter.log.user,model_wms_sorter_log,stock.group_stock_manager,1,0,0,0
-access_stock_picking_batch_sorter,stock.picking.batch.sorter,stock.model_stock_picking_batch,base.group_user,1,1,1,0
+access_stock_picking_batch_sorter,stock.picking.batch.sorter,stock_picking_batch.model_stock_picking_batch,base.group_user,1,1,1,0
