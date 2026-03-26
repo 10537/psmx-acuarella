@@ -4,6 +4,8 @@ from fastapi import APIRouter, Depends
 from odoo.addons.fastapi.dependencies import odoo_env
 from odoo.api import Environment
 
+from ..dependencies import get_current_user
+
 from ..schemas import (
     WaveSortingRequest,
     RealtimeDataRequest,
@@ -15,7 +17,7 @@ from ..schemas import (
 
 _logger = logging.getLogger(__name__)
 
-router = APIRouter(tags=["sorter"])
+router = APIRouter(tags=["sorter"], dependencies=[Depends(get_current_user)])
 
 
 # ──────────────────────────────────────────────────────────────────────────── #
