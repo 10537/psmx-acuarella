@@ -201,8 +201,8 @@ def sorting_status_push(
                     [("current_picking_id", "=", picking.id)], limit=1
                 )
                 if chute:
-                    chute.write({"state": "free", "current_picking_id": False})
-                    picking.write({"assigned_chute_id": False})
+                    chute.sudo().write({"state": "free", "current_picking_id": False})
+                    picking.sudo().write({"assigned_chute_id": False})
                     _logger.info("Released chute %s for picking %s", chute.name, picking.name)
                     # Trigger next in queue
                     env["stock.picking"].sudo()._process_chute_queue()
