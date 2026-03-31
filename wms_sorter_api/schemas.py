@@ -18,7 +18,7 @@ class RealtimeDataRequest(BaseModel):
 
 class SortingStatusPushRequest(BaseModel):
     """Endpoint 5: Equipment pushes sorting result to Odoo."""
-    order: str      # SKU / default_code
+    order: str      # Sales Order Number (e.g. SO001)
     sn: str         # Barcode
     num: int        # Quantity
     chute: str      # Chute / destination
@@ -31,7 +31,7 @@ class SortingStatusPushRequest(BaseModel):
 
 class SortingItem(BaseModel):
     """A single sorting data record returned in responses."""
-    order: str      # SKU
+    order: str      # Sales Order Number (e.g. SO001)
     sn: str         # Barcode
     num: int        # Quantity
     chute: str      # Chute

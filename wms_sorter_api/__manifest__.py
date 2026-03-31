@@ -14,6 +14,8 @@
         "security/ir.model.access.csv",
         "data/fastapi_endpoints.xml",
         "views/sorter_log_views.xml",
+        "views/sorter_chute_views.xml",
+        "views/stock_picking_views.xml",
     ],
     "installable": True,
     "application": False,

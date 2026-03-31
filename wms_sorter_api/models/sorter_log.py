@@ -29,7 +29,7 @@ class WmsSorterLog(models.Model):
     # ------------------------------------------------------------------ #
 
     wave_no = fields.Char(string="Wave / Batch No", index=True)
-    sku = fields.Char(string="SKU (order)")
+    sku = fields.Char(string="Order / Sales Order")
     barcode = fields.Char(string="Barcode (sn)")
     quantity = fields.Integer(string="Quantity (num)")
     chute = fields.Char(string="Chute")

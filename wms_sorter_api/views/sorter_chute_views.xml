@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="wms_sorter_chute_view_tree" model="ir.ui.view">
+        <field name="name">wms.sorter.chute.view.tree</field>
+        <field name="model">wms.sorter.chute</field>
+        <field name="arch" type="xml">
+            <list string="Sorter Chutes" decoration-info="state == 'free'" decoration-warning="state == 'occupied'">
+                <field name="name"/>
+                <field name="state" widget="badge" decoration-info="state == 'free'" decoration-warning="state == 'occupied'"/>
+                <field name="current_picking_id"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="wms_sorter_chute_view_form" model="ir.ui.view">
+        <field name="name">wms.sorter.chute.view.form</field>
+        <field name="model">wms.sorter.chute</field>
+        <field name="arch" type="xml">
+            <form string="Sorter Chute">
+                <header>
+                    <button name="action_initialize_chutes" type="object" string="Initialize Chutes" class="oe_highlight" invisible="1"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <group>
+                        <field name="name"/>
+                        <field name="current_picking_id" readonly="1"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="wms_sorter_chute_action" model="ir.actions.act_window">
+        <field name="name">Sorter Chutes</field>
+        <field name="res_model">wms.sorter.chute</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Manage machine output chutes.
+            </p>
+        </field>
+    </record>
+
+    <menuitem id="wms_sorter_chute_menu"
+              name="Chutes"
+              parent="stock.menu_stock_config_settings"
+              action="wms_sorter_chute_action"
+              sequence="100"/>
+
+</odoo>

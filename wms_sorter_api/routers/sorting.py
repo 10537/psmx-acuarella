@@ -30,13 +30,13 @@ def _move_lines_to_items(move_lines) -> list[SortingItem]:
     for line in move_lines:
         product = line.product_id
         chute = (
-            line.location_dest_id.complete_name
-            if line.location_dest_id
+            line.picking_id.assigned_chute_id.name
+            if line.picking_id.assigned_chute_id
             else ""
         )
         items.append(
             SortingItem(
-                order=product.default_code or "",
+                order=line.picking_id.sale_id.name or "",
                 sn=product.barcode or "",
                 num=int(line.quantity or line.qty_done or 0),
                 chute=chute,
@@ -163,7 +163,6 @@ def sorting_status_push(
     # Validate product
     product = env["product.product"].search(
         [
-            ("default_code", "=", body.order),
             ("barcode", "=", body.sn),
         ],
         limit=1,
@@ -187,6 +186,7 @@ def sorting_status_push(
                 ("product_id", "=", product.id),
                 ("state", "not in", ("done", "cancel")),
                 ("picking_id.batch_id", "!=", False),
+                ("picking_id.sale_id.name", "=", body.order),
             ],
             limit=1,
         )
@@ -195,6 +195,18 @@ def sorting_status_push(
                 move_line.sudo().write({
                     "qty_done": body.num,
                 })
+                # Release Chute
+                picking = move_line.picking_id
+                chute = env["wms.sorter.chute"].sudo().search(
+                    [("current_picking_id", "=", picking.id)], limit=1
+                )
+                if chute:
+                    chute.write({"state": "free", "current_picking_id": False})
+                    picking.write({"assigned_chute_id": False})
+                    _logger.info("Released chute %s for picking %s", chute.name, picking.name)
+                    # Trigger next in queue
+                    env["stock.picking"].sudo()._process_chute_queue()
+
                 Log.log_event(
                     sku=body.order,
                     barcode=body.sn,
@@ -202,7 +214,7 @@ def sorting_status_push(
                     chute=body.chute,
                     status=body.status,
                     level="info",
-                    note=f"Move line {move_line.id} updated: qty_done={body.num}.",
+                    note=f"Move line {move_line.id} updated and chute released.",
                     batch_id=move_line.picking_id.batch_id.id,
                 )
             except Exception as exc:  # noqa: BLE001
