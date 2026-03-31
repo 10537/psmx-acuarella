@@ -25,15 +25,28 @@ class StockPicking(models.Model):
         ondelete="set null",
     )
 
-    def button_validate(self):
+    @api.model_create_multi
+    def create(self, vals_list):
         """
-        When validating a picking, attempt to assign it a chute.
+        When creating a picking, attempt to assign it a chute if it's an outgoing transfer.
         """
-        res = super(StockPicking, self).button_validate()
-        for picking in self:
+        pickings = super(StockPicking, self).create(vals_list)
+        for picking in pickings:
             if picking.picking_type_code == "outgoing":
                 picking._assign_sorter_chute()
-        return res
+        return pickings
+
+    def action_cancel(self):
+        """ Release chute on cancellation. """
+        for picking in self:
+            picking._release_sorter_chute()
+        return super(StockPicking, self).action_cancel()
+
+    def unlink(self):
+        """ Release chute before deleting. """
+        for picking in self:
+            picking._release_sorter_chute()
+        return super(StockPicking, self).unlink()
 
     def _assign_sorter_chute(self):
         """
@@ -91,3 +104,18 @@ class StockPicking(models.Model):
                 picking._assign_sorter_chute()
             else:
                 break
+
+    def _release_sorter_chute(self):
+        """
+        Logic to release the chute assigned to this picking.
+        """
+        for picking in self:
+            chute = picking.assigned_chute_id
+            if chute:
+                chute.sudo().write({"state": "free", "current_picking_id": False})
+                picking.sudo().write({"assigned_chute_id": False})
+                picking.message_post(body=_("Sorter Chute <b>%s</b> released.") % chute.name)
+                # Trigger next in queue
+                self.env["stock.picking"].sudo()._process_chute_queue()
+            elif picking.is_waiting_chute:
+                picking.sudo().write({"is_waiting_chute": False})
