@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_move_line_tree_inherit_batch_sorter" model="ir.ui.view">
+        <field name="name">stock_picking_batch.move.line.list.inherit.sorter</field>
+        <field name="model">stock.move.line</field>
+        <field name="inherit_id" ref="stock_picking_batch.view_move_line_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='product_id']" position="after">
+                <field name="sorter_state" widget="badge" 
+                       decoration-info="sorter_state == 'picking'" 
+                       decoration-success="sorter_state == 'collected'"
+                       optional="show"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_move_line_tree_inherit_sorter" model="ir.ui.view">
+        <field name="name">stock.move.line.list.inherit.sorter</field>
+        <field name="model">stock.move.line</field>
+        <field name="inherit_id" ref="stock.view_move_line_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='state']" position="after">
+                <field name="sorter_state" widget="badge" 
+                       decoration-info="sorter_state == 'picking'" 
+                       decoration-success="sorter_state == 'collected'"
+                       optional="show"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_move_line_tree_detailed_inherit_sorter" model="ir.ui.view">
+        <field name="name">stock.move.line.list.detailed.inherit.sorter</field>
+        <field name="model">stock.move.line</field>
+        <field name="inherit_id" ref="stock.view_move_line_tree_detailed"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='state']" position="after">
+                <field name="sorter_state" widget="badge" 
+                       decoration-info="sorter_state == 'picking'" 
+                       decoration-success="sorter_state == 'collected'"
+                       optional="show"/>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

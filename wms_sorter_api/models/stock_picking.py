@@ -42,6 +42,14 @@ class StockPicking(models.Model):
             picking._release_sorter_chute()
         return super(StockPicking, self).action_cancel()
 
+    def button_validate(self):
+        """ Release chute after successful outgoing picking validation. """
+        res = super(StockPicking, self).button_validate()
+        for picking in self:
+            if picking.picking_type_code == "outgoing":
+                picking._release_sorter_chute()
+        return res
+
     def unlink(self):
         """ Release chute before deleting. """
         for picking in self:

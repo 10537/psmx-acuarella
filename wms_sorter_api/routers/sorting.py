@@ -10,6 +10,7 @@ from ..schemas import (
     WaveSortingRequest,
     RealtimeDataRequest,
     SortingStatusPushRequest,
+    WaveEndRequest,
     SortingDataResponse,
     SortingItem,
     AckResponse,
@@ -38,7 +39,7 @@ def _move_lines_to_items(move_lines) -> list[SortingItem]:
             SortingItem(
                 order=line.picking_id.sale_id.name or "",
                 sn=product.barcode or "",
-                num=int(line.quantity or line.qty_done or 0),
+                num=int(line.quantity or line.quantity or 0),
                 chute=chute,
             )
         )
@@ -155,7 +156,7 @@ def sorting_status_push(
     """
     Equipment pushes a sorting result to Odoo.
 
-    - ``status == "Sorting Completed"`` → validate the related move line.
+    - ``status == "completed"`` → validate the related move line.
     - Any other status (jams, errors) → log a warning in wms.sorter.log.
     """
     Log = env["wms.sorter.log"].sudo()
@@ -179,7 +180,7 @@ def sorting_status_push(
         )
         return AckResponse(code=1, msg=f"Product '{body.order}' / '{body.sn}' not found.")
 
-    if body.status == "Sorting Completed":
+    if body.status == "completed":
         # Find the matching move line in an active batch
         move_line = env["stock.move.line"].search(
             [
@@ -193,10 +194,9 @@ def sorting_status_push(
         if move_line:
             try:
                 move_line.sudo().write({
-                    "qty_done": body.num,
+                    "quantity": body.num,
+                    "sorter_state": "collected",
                 })
-                # Release Chute
-                move_line.picking_id.sudo()._release_sorter_chute()
 
                 Log.log_event(
                     sku=body.order,
@@ -239,3 +239,55 @@ def sorting_status_push(
         )
 
     return AckResponse(code=0, msg="Received")
+
+
+# ──────────────────────────────────────────────────────────────────────────── #
+# Endpoint 6: Wave End API – POST /wave-end                                    #
+# ──────────────────────────────────────────────────────────────────────────── #
+
+@router.post("/wave-end", response_model=AckResponse)
+def wave_end(
+    body: WaveEndRequest,
+    env: Environment = Depends(odoo_env),
+):
+    """
+    Equipment signals the end of a wave sorting process.
+    Odoo validates that the wave is fully collected and completes the batch.
+    """
+    batch = env["stock.picking.batch"].search(
+        [("name", "=", body.wave_No)], limit=1
+    )
+    if not batch:
+        return AckResponse(
+            code=1,
+            msg=f"Wave '{body.wave_No}' not found.",
+        )
+
+    if batch.state != "in_progress":
+        return AckResponse(
+            code=1,
+            msg=f"Wave '{body.wave_No}' is not in progress. Current state: {batch.state}",
+        )
+
+    move_lines = batch.move_line_ids
+    if not move_lines:
+        return AckResponse(code=1, msg=f"Wave '{body.wave_No}' has no lines.")
+
+    # Check if all lines are collected
+    missing_lines = move_lines.filtered(lambda ml: ml.sorter_state != "collected")
+    if missing_lines:
+        return AckResponse(
+            code=1,
+            msg=f"Cannot end wave '{body.wave_No}'. {len(missing_lines)} lines are not collected. Operator intervention required.",
+        )
+
+    # All collected -> Complete the batch
+    # The action_done can raise UserError if there's stock unavailable etc.
+    try:
+        batch.sudo().action_done()
+        _logger.info("Batch %s validated automatically via /wave-end", batch.name)
+    except Exception as exc:
+        _logger.exception("Error during batch action_done: %s", exc)
+        return AckResponse(code=1, msg=f"Error validating wave: {exc}")
+
+    return AckResponse(code=0, msg="Wave validated successfully.")

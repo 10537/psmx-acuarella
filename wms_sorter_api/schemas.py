@@ -25,6 +25,11 @@ class SortingStatusPushRequest(BaseModel):
     status: str     # e.g. "Sorting Completed" | "Goods Jammed at Chute 0"
 
 
+class WaveEndRequest(BaseModel):
+    """Endpoint 6: Wave End API request."""
+    wave_No: str
+
+
 # ──────────────────────────────────────────────
 # Response Schemas
 # ──────────────────────────────────────────────
