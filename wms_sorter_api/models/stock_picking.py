@@ -32,7 +32,7 @@ class StockPicking(models.Model):
         """
         pickings = super(StockPicking, self).create(vals_list)
         for picking in pickings:
-            if picking.picking_type_code == "outgoing":
+            if picking.picking_type_id.assign_chute:
                 picking._assign_sorter_chute()
         return pickings
 
@@ -46,7 +46,7 @@ class StockPicking(models.Model):
         """ Release chute after successful outgoing picking validation. """
         res = super(StockPicking, self).button_validate()
         for picking in self:
-            if picking.picking_type_code == "outgoing":
+            if picking.assigned_chute_id:
                 picking._release_sorter_chute()
         return res
 
