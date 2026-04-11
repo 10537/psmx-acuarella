@@ -45,7 +45,7 @@
 
     <menuitem id="wms_sorter_chute_menu"
               name="Chutes"
-              parent="stock.menu_stock_config_settings"
+              parent="wms_sorter_api.menu_wms_sorter_root"
               action="wms_sorter_chute_action"
               sequence="100"/>
 
