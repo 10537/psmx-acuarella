@@ -49,8 +49,11 @@ class SorterApiLoggedRoute(APIRoute):
                 # Try to get env from request state (set by odoo.fastapi)
                 env = getattr(request.state, "env", None)
                 if not env:
-                    # Fallback to current if missing
-                    env = Environment.current if Environment.current else None
+                    try:
+                        from odoo.http import request as odoo_request
+                        env = getattr(odoo_request, "env", None)
+                    except (ImportError, RuntimeError, AttributeError):
+                        env = None
                 
                 if env:
                     try:
