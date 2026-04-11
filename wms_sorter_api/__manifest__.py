@@ -13,7 +13,9 @@
     "data": [
         "security/ir.model.access.csv",
         "data/fastapi_endpoints.xml",
+        "data/ir_cron.xml",
         "views/sorter_log_views.xml",
+        "views/sorter_api_log_views.xml",
         "views/sorter_chute_views.xml",
         "views/stock_picking_views.xml",
         "views/stock_picking_batch_views.xml",

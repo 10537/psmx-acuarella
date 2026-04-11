@@ -3,4 +3,5 @@ access_wms_sorter_log_admin,wms.sorter.log.admin,model_wms_sorter_log,base.group
 access_wms_sorter_log_user,wms.sorter.log.user,model_wms_sorter_log,stock.group_stock_manager,1,0,0,0
 access_stock_picking_batch_sorter,stock.picking.batch.sorter,stock_picking_batch.model_stock_picking_batch,base.group_user,1,1,1,0
 access_wms_sorter_chute_admin,wms.sorter.chute.admin,model_wms_sorter_chute,base.group_system,1,1,1,1
-access_wms_sorter_chute_user,wms.sorter.chute.user,model_wms_sorter_chute,stock.group_stock_manager,1,0,0,0
+access_wms_sorter_api_log_admin,wms.sorter.api.log.admin,model_wms_sorter_api_log,base.group_system,1,1,1,1
+access_wms_sorter_api_log_user,wms.sorter.api.log.user,model_wms_sorter_api_log,stock.group_stock_manager,1,0,0,0

@@ -1,6 +1,8 @@
 import logging
-
-from fastapi import APIRouter, Depends
+import json
+from typing import Callable
+from fastapi import APIRouter, Depends, Request, Response
+from fastapi.routing import APIRoute
 from odoo.addons.fastapi.dependencies import odoo_env
 from odoo.api import Environment
 
@@ -18,7 +20,66 @@ from ..schemas import (
 
 _logger = logging.getLogger(__name__)
 
-router = APIRouter(tags=["sorter"], dependencies=[Depends(get_current_user)])
+
+class SorterApiLoggedRoute(APIRoute):
+    def get_route_handler(self) -> Callable:
+        original_route_handler = super().get_route_handler()
+
+        async def custom_route_handler(request: Request) -> Response:
+            # 1. Capture Request Data
+            method = request.method
+            url = str(request.url)
+            ip_address = request.client.host if request.client else "unknown"
+            
+            # Read body safely
+            body_bytes = await request.body()
+            request_payload = body_bytes.decode("utf-8", errors="replace") if body_bytes else ""
+
+            # 2. Execute original handler
+            response = None
+            error_message = None
+            try:
+                response = await original_route_handler(request)
+            except Exception as e:
+                error_message = str(e)
+                # Re-raise to let FastAPI handle it (and let it reach the finally block)
+                raise
+            finally:
+                # 3. Create Log Entry in Odoo
+                # Try to get env from request state (set by odoo.fastapi)
+                env = getattr(request.state, "env", None)
+                if not env:
+                    # Fallback to current if missing
+                    env = Environment.current if Environment.current else None
+                
+                if env:
+                    try:
+                        log_vals = {
+                            "name": url,
+                            "method": method,
+                            "ip_address": ip_address,
+                            "request_payload": request_payload,
+                            "status_code": response.status_code if response else 500,
+                            "error_message": error_message,
+                        }
+                        if response and hasattr(response, "body"):
+                            log_vals["response_payload"] = response.body.decode("utf-8", errors="replace")
+                            
+                        env["wms.sorter.api.log"].sudo().create(log_vals)
+                        # We don't commit here, FastAPI integration usually handles the transaction
+                    except Exception as log_exc:
+                        _logger.error("Failed to create API log: %s", log_exc)
+
+            return response
+
+        return custom_route_handler
+
+
+router = APIRouter(
+    tags=["sorter"], 
+    dependencies=[Depends(get_current_user)],
+    route_class=SorterApiLoggedRoute
+)
 
 
 # ──────────────────────────────────────────────────────────────────────────── #
