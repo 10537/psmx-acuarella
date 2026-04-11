@@ -191,7 +191,7 @@ class DeliveryCarrier(models.Model):
                     'linea': '',
                     'contenido': (order.client_order_ref or 'Mercancia')[:30],
                     'referencia': order.name,
-                    'observaciones': (order.note or '')[:100],
+                    'observaciones': "https://test.jdchouse.com/terms",
                     'estado': 'IMPRESO',
                     'detalle': [{
                         'ubl': 0,
