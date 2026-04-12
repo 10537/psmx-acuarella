@@ -11,6 +11,7 @@
 - **Focus:** Real-time communication with warehouse sorting machines.
 - **Communication:** FastAPI endpoints (`wms_sorter_api/routers`).
 - **Functionality:** Wave sorting data pushes, status updates, and order queries.
+- **Observability:** Technical audit layer (`wms.sorter.api.log`) capturing all raw JSON requests/responses and sender IPs.
 
 ## Carrier: Coordinadora
 - **Module:** `delivery_coordinadora`

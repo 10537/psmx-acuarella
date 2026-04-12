@@ -242,8 +242,8 @@ class ShopifyOrder:
             'ref': self.name,
             'date_order': self.created_at,
             'lines': self.parse_lines(),
-            'payment_method': self._parse_payment_code(self._data),
-            'payment_methods': self._parse_payment_codes(self._data),
+            'payment_method': self._parse_payment_code(self._data, self._payment_transactions),
+            'payment_methods': self._parse_payment_codes(self._data, self._payment_transactions),
             'amount_total': self.get_price_total(),
             'delivery_data': self.parse_delivery_data(),
             'discount_data': {},  # Prestashop only
@@ -431,14 +431,35 @@ class ShopifyOrder:
         ]
 
     @staticmethod
-    def _parse_payment_code(data):
+    def _parse_payment_code(data, transactions=None):
+        # 1. Try to get it from transactions first
+        if transactions:
+            for txn in transactions:
+                # 'sale' or 'authorization' or 'capture' are the interesting ones
+                # but we just take any gateway name from transactions if it's there
+                gateway = getattr(txn, 'gateway', None) or txn.get('gateway') if hasattr(txn, 'get') else txn['gateway']
+                status = getattr(txn, 'status', None) or txn.get('status') if hasattr(txn, 'get') else txn['status']
+                
+                if gateway and status == 'SUCCESS':
+                    return format_payment_code(gateway)
+
         pay_code_list = data.get('payment_gateway_names', [])
         name = pay_code_list and pay_code_list[0] or None
         return format_payment_code(name)
 
     @staticmethod
-    def _parse_payment_codes(data):
-        return [format_payment_code(x) for x in data.get('payment_gateway_names', [])]
+    def _parse_payment_codes(data, transactions=None):
+        codes = [format_payment_code(x) for x in data.get('payment_gateway_names', [])]
+
+        if transactions:
+            for txn in transactions:
+                gateway = getattr(txn, 'gateway', None) or txn.get('gateway') if hasattr(txn, 'get') else txn['gateway']
+                if gateway:
+                    code = format_payment_code(gateway)
+                    if code not in codes:
+                        codes.append(code)
+
+        return codes
 
     @staticmethod
     def _parse_tags(data):

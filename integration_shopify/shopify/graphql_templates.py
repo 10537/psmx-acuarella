@@ -949,7 +949,10 @@ class GraphQLTemplate:
         name
         createdAt
         paymentGatewayNames
-    """
+        transactions(first: 5) {
+            %s
+        }
+    """ % ORDER_TRANSACTION_BODY
 
     ORDER_INPUT_FILE_BODY = """
         id

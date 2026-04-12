@@ -13,6 +13,8 @@
 - **FastAPI Dependency Updates:** Maintaining consistent Pydantic versioning across both Odoo and a potential external environment.
 
 ## Suggested Improvements
-- Implement a more structured API logging/observability layer (already partially handled by `integration_shopify_observability`).
 - Standardize the `x_` prefix usage across all custom fields for clarity.
 - Increase unit test coverage for the FastAPI routers using `TestClient`.
+
+## External Constraints
+- **Coordinadora API (100-character limit)**: The `observaciones` field in the Coordinadora API is limited to 100 characters. For Acuarella, this is mitigated by sending only the Terms and Conditions URL.

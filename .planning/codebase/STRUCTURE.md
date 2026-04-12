@@ -9,6 +9,8 @@ The repository follows the standard Odoo 18 module structure. Custom functionali
 - `acuarella_api/`: Core FastAPI infrastructure for Acuarella.
 - `acuarella_stock_reports/`: Inventory reporting logic.
 - `wms_sorter_api/`: Warehouse sorter integration (fastapi routers, models, schemas).
+  - Models: `wms.sorter.chute`, `wms.sorter.log`, `wms.sorter.api.log`.
+  - Automation: `data/ir_cron.xml` for log retention.
 - `delivery_coordinadora/`: Colombian carrier integration for Coordinadora.
 
 ### Integration Modules (Shopify)

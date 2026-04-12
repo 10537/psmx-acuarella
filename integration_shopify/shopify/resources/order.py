@@ -114,8 +114,12 @@ class OrderParseMixin:
     def parse_payment_gateway_names(self) -> list:
         self.ensure_one()
 
-        names = self.payment_gateway_names
+        names = list(self.payment_gateway_names or [])
         OrderTransaction = self._env.OrderTransaction.cls
+
+        for txn in self.transactions:
+            if txn.gateway and txn.gateway not in names:
+                names.append(txn.gateway)
 
         if not names:
             return [OrderTransaction.format_payment_code(False)]

@@ -19,9 +19,11 @@ The project uses a hybrid architecture where Odoo 18 provides the core ERP funct
 
 ### Data Flow (Sorter Example)
 1. **Request:** Sorting equipment sends a POST request to `/wave-sorting`.
-2. **FastAPI Context:** The `odoo_env` dependency initializes an Odoo Environment.
-3. **Business Logic:** The router searches for the `stock.picking.batch` in Odoo.
-4. **Response:** Odoo records are transformed into Pydantic models (JSON) and returned to the equipment.
+2. **Audit Layer:** The `SorterApiLoggedRoute` captures the raw request and client IP.
+3. **FastAPI Context:** The `odoo_env` dependency initializes an Odoo Environment.
+4. **Business Logic:** The router searches for the `stock.picking.batch` in Odoo.
+5. **Response:** Odoo records are transformed into Pydantic models (JSON) and returned.
+6. **Logging:** The audit layer records the response and status code in Odoo.
 
 ## Security
 - API Key authentication managed via `fastapi_auth_api_key`.
