@@ -808,9 +808,6 @@ class GraphQLTemplate:
 
     ORDER_TRANSACTION_BODY = """
         id
-        order {
-            id
-        }
         paymentId
         kind
         status
@@ -968,7 +965,11 @@ class GraphQLTemplate:
         closedAt
         createdAt
         updatedAt
-    """ % PUBLICATION_BODY
+        paymentGatewayNames
+        transactions(first: 5) {
+            %s
+        }
+    """ % (PUBLICATION_BODY, ORDER_TRANSACTION_BODY)
 
     WEBHOOK_SUBSCRIPTION_BODY = """
         id

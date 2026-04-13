@@ -973,6 +973,7 @@ class ShopifyAPIClient(AbsApiClient):
         params_str = self.order_fetch_kwargs()(**kw)
 
         orders = self.gql.Order.get_batch_body_minimal(filter_params=params_str)
+        _logger.info('Shopify "%s": receive_orders() -> %s orders received.', self._integration_name, len(orders))
 
         return [x.to_odoo_format() for x in orders]
 
@@ -1543,7 +1544,11 @@ class ShopifyAPIClient(AbsApiClient):
         args = []
 
         def prepare_elements(name, element_str: str) -> str:
-            elements = list(map(lambda x: x.strip(), element_str.split(',')))
+            elements = list(map(lambda x: x.strip().lower(), element_str.split(',')))
+            elements = [x for x in elements if x != 'not_closed']
+
+            if not elements:
+                return ''
 
             if len(elements) > 1:
                 value = ' OR '.join(f'({name}:{x})' for x in elements)
