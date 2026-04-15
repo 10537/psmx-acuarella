@@ -19,6 +19,7 @@
                                 <field name="coordinadora_tracking_password" password="1" required="delivery_type == 'coordinadora' and coordinadora_use_api"/>
                                 <field name="coordinadora_nit" required="delivery_type == 'coordinadora' and coordinadora_use_api"/>
                                 <field name="coordinadora_div" required="delivery_type == 'coordinadora' and coordinadora_use_api"/>
+                                <field name="coordinadora_id_rotulo"/>
                             </group>
                             <group string="Environment &amp; URLs">
                                 <field name="coordinadora_environment" widget="radio"/>
@@ -42,6 +43,25 @@
                         <field name="carrier_delivery_ref" readonly="1"/>
                         <field name="carrier_delivery_url" readonly="1" widget="url"/>
                     </group>
+                </xpath>
+            </field>
+        </record>
+        <record id="view_picking_form_coordinadora" model="ir.ui.view">
+            <field name="name">stock.picking.coordinadora.form</field>
+            <field name="model">stock.picking</field>
+            <field name="inherit_id" ref="stock.view_picking_form"/>
+            <field name="arch" type="xml">
+                <xpath expr="//button[@name='action_put_in_pack']" position="after">
+                    <button name="action_generate_coordinadora_guide"
+                            string="Generar Guía Coordinadora"
+                            type="object"
+                            class="btn-primary"
+                            invisible="picking_type_code != 'outgoing' or carrier_id.delivery_type != 'coordinadora'"/>
+                    <button name="action_print_coordinadora_label"
+                            string="Imprimir Etiqueta Coordinadora"
+                            type="object"
+                            class="btn-secondary"
+                            invisible="picking_type_code != 'outgoing' or carrier_id.delivery_type != 'coordinadora' or not carrier_tracking_ref"/>
                 </xpath>
             </field>
         </record>
