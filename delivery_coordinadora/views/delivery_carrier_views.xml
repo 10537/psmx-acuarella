@@ -56,12 +56,12 @@
                             string="Generar Guía Coordinadora"
                             type="object"
                             class="btn-primary"
-                            invisible="picking_type_code != 'outgoing' or carrier_id.delivery_type != 'coordinadora'"/>
+                            invisible="not is_coordinadora_delivery"/>
                     <button name="action_print_coordinadora_label"
                             string="Imprimir Etiqueta Coordinadora"
                             type="object"
                             class="btn-secondary"
-                            invisible="picking_type_code != 'outgoing' or carrier_id.delivery_type != 'coordinadora' or not carrier_tracking_ref"/>
+                            invisible="not is_coordinadora_delivery or not carrier_tracking_ref"/>
                 </xpath>
             </field>
         </record>

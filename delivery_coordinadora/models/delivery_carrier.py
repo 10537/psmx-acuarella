@@ -386,6 +386,21 @@ class DeliveryCarrier(models.Model):
 class StockPicking(models.Model):
     _inherit = 'stock.picking'
 
+    is_coordinadora_delivery = fields.Boolean(
+        string="Es entrega Coordinadora",
+        compute='_compute_is_coordinadora_delivery',
+        store=False,
+    )
+
+    @api.depends('carrier_id', 'carrier_id.delivery_type', 'picking_type_code')
+    def _compute_is_coordinadora_delivery(self):
+        for picking in self:
+            picking.is_coordinadora_delivery = (
+                picking.picking_type_code == 'outgoing'
+                and picking.carrier_id
+                and picking.carrier_id.delivery_type == 'coordinadora'
+            )
+
     def action_generate_coordinadora_guide(self):
         """Button action: generate Coordinadora guide for this delivery picking."""
         self.ensure_one()
