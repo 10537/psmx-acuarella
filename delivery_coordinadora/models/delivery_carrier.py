@@ -108,15 +108,15 @@ class DeliveryCarrier(models.Model):
                 'origen': origin_city,
                 'destino': dest_city,
                 'valoracion': int(order.amount_total),
-                'nivel_servicio': xsd.SkipValue,
+                'nivel_servicio': 1,
                 'detalle': {
                     'item': [{
-                        'ubl': 1,
-                        'alto': 10,
-                        'ancho': 10,
-                        'largo': 10,
-                        'peso': float(total_weight),
-                        'unidades': int(total_product),
+                        'ubl': '1',
+                        'alto': '50',
+                        'ancho': '50',
+                        'largo': '50',
+                        'peso': str(total_weight),
+                        'unidades': str(int(total_product)),
                     }]
                 },
                 'apikey': self.coordinadora_apikey,
