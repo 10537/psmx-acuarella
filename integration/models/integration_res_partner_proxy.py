@@ -456,25 +456,39 @@ class IntegrationResPartnerProxy(models.TransientModel):
 
         Priority order:
         1. Try to use existing external mapping (if compatible)
-        2. If skip_individual_contacts + company_name: return company partner
-        3. Search for existing partner by domain
-        4. Create new partner
+        2. Fallback: exact email match on a root-level contact (avoids creating duplicates
+           when the same customer already exists without an external ID mapping)
+        3. If skip_individual_contacts + company_name: return company partner
+        4. Search for existing partner by configured domain
+        5. Create new partner
+
+        The external ID is only ever linked to the main contact record; billing and
+        shipping address sub-records must never receive the customer external ID.
 
         Returns:
             models.Model: The retrieved or created partner instance.
         """
-        # Try to get compatible mapped partner
+        # Step 1: Try to get compatible mapped partner via external ID
         partner = self._get_compatible_mapped_partner()
         if partner:
             self.partner_id = partner
             self._configure_partner(partner)
             return partner
 
-        # Return for company-only mode
+        # Step 2: Fallback — search by exact email on a root-level contact partner.
+        # This prevents creating a duplicate root record when the customer already
+        # exists in Odoo but has not yet been linked to its Shopify external ID.
+        if not self.integration_id.skip_individual_contacts:
+            partner = self._find_partner_by_email()
+            if partner:
+                self._configure_partner(partner)
+                return partner
+
+        # Step 3: Return for company-only mode
         if self.integration_id.skip_individual_contacts and self.company_name:
             return self._get_or_create_company_partner()
 
-        # If no mapped partner, search or create new one
+        # Step 4+5: General domain search or create new partner
         if not partner:
             partner = self._search_or_create_partner()
 
@@ -482,6 +496,25 @@ class IntegrationResPartnerProxy(models.TransientModel):
         self._configure_partner(partner)
 
         return partner
+
+    def _find_partner_by_email(self) -> models.Model:
+        """
+        Search for an existing root-level contact partner by exact email address.
+
+        Only root-level partners (parent_id=False) of type 'contact' are considered
+        so that billing/delivery sub-addresses are never returned as the main customer.
+
+        Returns:
+            models.Model: Matching partner or an empty recordset.
+        """
+        if not self.email:
+            return self.env['res.partner']
+
+        return self.env['res.partner'].search([
+            ('email', '=', self.email),
+            ('type', '=', 'contact'),
+            ('parent_id', '=', False),
+        ], order='create_date asc', limit=1)
 
     def _get_compatible_mapped_partner(self) -> models.Model:
         """
