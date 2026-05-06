@@ -5,10 +5,9 @@
         <record id="view_choose_delivery_carrier_coordinadora" model="ir.ui.view">
             <field name="name">choose.delivery.carrier.coordinadora.form</field>
             <field name="model">choose.delivery.carrier</field>
-            <field name="inherit_id" ref="delivery.choose_delivery_carrier_form_view"/>
+            <field name="inherit_id" ref="delivery.choose_delivery_carrier_view_form"/>
             <field name="arch" type="xml">
-                <!-- Insert Coordinadora dimension fields after the delivery price row -->
-                <xpath expr="//field[@name='delivery_price']" position="after">
+                <xpath expr="//field[@name='display_price']/.." position="after">
                     <group
                         string="Dimensiones del Paquete (Coordinadora)"
                         invisible="not show_coordinadora_dims"
