@@ -29,11 +29,7 @@ class ChooseDeliveryCarrier(models.TransientModel):
         default=10.0,
         help='Largo del paquete en centímetros.',
     )
-    coordinadora_peso = fields.Float(
-        string='Peso (kg)',
-        default=1.0,
-        help='Peso del paquete en kilogramos.',
-    )
+
     show_coordinadora_dims = fields.Boolean(
         compute='_compute_show_coordinadora_dims',
     )
@@ -50,24 +46,18 @@ class ChooseDeliveryCarrier(models.TransientModel):
     # ------------------------------------------------------------------
 
     @api.onchange('coordinadora_alto', 'coordinadora_ancho',
-                  'coordinadora_largo', 'coordinadora_peso')
+                  'coordinadora_largo', 'total_weight')
     def _onchange_coordinadora_dims(self):
         if self.carrier_id.delivery_type == 'coordinadora':
-            self._get_shipment_rate()
+            self._get_delivery_rate()
 
-    # ------------------------------------------------------------------
-    # Inject dimensions into context before rate computation
-    # ------------------------------------------------------------------
-
-    def _get_shipment_rate(self):
+    def _get_delivery_rate(self):
         if self.carrier_id.delivery_type == 'coordinadora':
-            return super(
-                ChooseDeliveryCarrier,
-                self.with_context(
-                    coordinadora_alto=self.coordinadora_alto,
-                    coordinadora_ancho=self.coordinadora_ancho,
-                    coordinadora_largo=self.coordinadora_largo,
-                    coordinadora_peso=self.coordinadora_peso,
-                ),
-            )._get_shipment_rate()
-        return super()._get_shipment_rate()
+            return super(ChooseDeliveryCarrier, self.with_context(
+                carrier_recompute=True,
+                coordinadora_alto=self.coordinadora_alto,
+                coordinadora_ancho=self.coordinadora_ancho,
+                coordinadora_largo=self.coordinadora_largo,
+                coordinadora_peso=self.total_weight,
+            ))._get_delivery_rate()
+        return super()._get_delivery_rate()

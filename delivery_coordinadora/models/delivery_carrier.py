@@ -185,14 +185,14 @@ class DeliveryCarrier(models.Model):
                 'origen': origin_city,
                 'destino': dest_city,
                 'valoracion': int(order.amount_total),
-                'nivel_servicio': {'item': [{'item': 1}]},
+                'nivel_servicio': [1],
                 'detalle': {'item': [{
-                    'ubl': 1,
-                    'alto': float(alto),
-                    'ancho': float(ancho),
-                    'largo': float(largo),
-                    'peso': float(total_weight),
-                    'unidades': int(total_units),
+                    'ubl': 0,
+                    'alto': str(int(alto)),
+                    'ancho': str(int(ancho)),
+                    'largo': str(int(largo)),
+                    'peso': str(int(total_weight)),
+                    'unidades': str(int(total_units)),
                 }]},
                 'apikey': self.coordinadora_apikey,
                 'clave': self.coordinadora_tracking_password,
@@ -399,9 +399,13 @@ class DeliveryCarrier(models.Model):
         try:
             client = self._get_coordinadora_client(ws_type='guias')
 
+            from lxml import etree
+            item = etree.Element("item")
+            item.text = picking.carrier_tracking_ref
+
             request_data = {
                 'id_rotulo': int(self.coordinadora_id_rotulo),
-                'codigos_remisiones': [picking.carrier_tracking_ref],
+                'codigos_remisiones': {'_value_1': [item]},
                 'usuario': self.coordinadora_user,
                 'clave': self.coordinadora_password,
             }
@@ -415,7 +419,14 @@ class DeliveryCarrier(models.Model):
         except UserError:
             raise
         except Exception as e:
+            error_msg = str(e)
             _logger.exception("Coordinadora imprimirRotulos error")
+            if "Could not connect to host" in error_msg:
+                raise UserError(
+                    "El servidor de pruebas (Sandbox) de Coordinadora falló internamente al generar el PDF "
+                    "('Could not connect to host'). Esto es común en su ambiente de pruebas. "
+                    "Por favor, intenta más tarde o realiza la prueba en Producción."
+                )
             raise UserError(f"Error comunicando con Coordinadora API (rótulos): {e}")
 
         # Extract the base64 PDF — field name may vary by API version

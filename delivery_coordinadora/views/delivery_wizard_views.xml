@@ -11,11 +11,6 @@
                     <group
                         string="Dimensiones del Paquete (Coordinadora)"
                         invisible="not show_coordinadora_dims">
-                        <label for="coordinadora_peso" string="Peso"/>
-                        <div class="o_row">
-                            <field name="coordinadora_peso"/>
-                            <span>kg</span>
-                        </div>
                         <label for="coordinadora_largo" string="Largo"/>
                         <div class="o_row">
                             <field name="coordinadora_largo"/>
