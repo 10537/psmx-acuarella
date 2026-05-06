@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Extend the standard delivery carrier selection wizard -->
+        <record id="view_choose_delivery_carrier_coordinadora" model="ir.ui.view">
+            <field name="name">choose.delivery.carrier.coordinadora.form</field>
+            <field name="model">choose.delivery.carrier</field>
+            <field name="inherit_id" ref="delivery.choose_delivery_carrier_view_form"/>
+            <field name="arch" type="xml">
+                <xpath expr="//group/group[1]" position="after">
+                    <group
+                        string="Dimensiones del Paquete (Coordinadora)"
+                        invisible="not show_coordinadora_dims">
+                        <label for="coordinadora_largo" string="Largo"/>
+                        <div class="o_row">
+                            <field name="coordinadora_largo"/>
+                            <span>cm</span>
+                        </div>
+                        <label for="coordinadora_ancho" string="Ancho"/>
+                        <div class="o_row">
+                            <field name="coordinadora_ancho"/>
+                            <span>cm</span>
+                        </div>
+                        <label for="coordinadora_alto" string="Alto"/>
+                        <div class="o_row">
+                            <field name="coordinadora_alto"/>
+                            <span>cm</span>
+                        </div>
+                    </group>
+                    <!-- Hidden technical field consumed by the invisible condition -->
+                    <field name="show_coordinadora_dims" invisible="1"/>
+                </xpath>
+            </field>
+        </record>
+    </data>
+</odoo>
