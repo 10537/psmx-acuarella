@@ -467,6 +467,18 @@ class ShopifyAPIClient(AbsApiClient):
             ],
         }
 
+        # 1.0 Guard: title is mandatory for Shopify product creation.
+        # If _prepare_converted_fields returns None (e.g. translation not found for
+        # the shop language), fail early with a clear message instead of sending a
+        # broken payload that Shopify rejects with "INVALID_PRODUCT: Title must be specified".
+        if not payload.get('title'):
+            raise ShopifyApiError(_(
+                'Cannot export product to Shopify: the "title" field is missing or empty. '
+                'Ensure the product has a name in Odoo and that the field is mapped to the '
+                '"title" API field in the integration settings. '
+                'Integration: "%s".'
+            ) % self._integration_name)
+
         product = self.gql.Product
 
         # 1.1 If no product options, add default "Title" option

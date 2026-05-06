@@ -8,7 +8,7 @@
         It allows for rate calculation, guide generation, and tracking.
     """,
     'author': 'Psmx-Acuarella',
-    'depends': ['delivery', 'mail'],
+    'depends': ['delivery', 'stock_delivery', 'mail'],
     'data': [
         'views/delivery_carrier_views.xml',
     ],
