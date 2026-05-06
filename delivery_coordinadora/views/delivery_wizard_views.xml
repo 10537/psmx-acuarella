@@ -7,26 +7,33 @@
             <field name="model">choose.delivery.carrier</field>
             <field name="inherit_id" ref="delivery.choose_delivery_carrier_view_form"/>
             <field name="arch" type="xml">
-                <xpath expr="//field[@name='display_price']/.." position="after">
+                <xpath expr="//group/group[1]" position="after">
                     <group
                         string="Dimensiones del Paquete (Coordinadora)"
-                        invisible="not show_coordinadora_dims"
-                        col="4">
-                        <field name="coordinadora_alto"
-                               string="Alto (cm)"
-                               invisible="not show_coordinadora_dims"/>
-                        <field name="coordinadora_ancho"
-                               string="Ancho (cm)"
-                               invisible="not show_coordinadora_dims"/>
-                        <field name="coordinadora_largo"
-                               string="Largo (cm)"
-                               invisible="not show_coordinadora_dims"/>
-                        <field name="coordinadora_peso"
-                               string="Peso (kg)"
-                               invisible="not show_coordinadora_dims"/>
-                        <!-- Hidden technical field consumed by the onchange -->
-                        <field name="show_coordinadora_dims" invisible="1"/>
+                        invisible="not show_coordinadora_dims">
+                        <label for="coordinadora_peso" string="Peso"/>
+                        <div class="o_row">
+                            <field name="coordinadora_peso"/>
+                            <span>kg</span>
+                        </div>
+                        <label for="coordinadora_largo" string="Largo"/>
+                        <div class="o_row">
+                            <field name="coordinadora_largo"/>
+                            <span>cm</span>
+                        </div>
+                        <label for="coordinadora_ancho" string="Ancho"/>
+                        <div class="o_row">
+                            <field name="coordinadora_ancho"/>
+                            <span>cm</span>
+                        </div>
+                        <label for="coordinadora_alto" string="Alto"/>
+                        <div class="o_row">
+                            <field name="coordinadora_alto"/>
+                            <span>cm</span>
+                        </div>
                     </group>
+                    <!-- Hidden technical field consumed by the invisible condition -->
+                    <field name="show_coordinadora_dims" invisible="1"/>
                 </xpath>
             </field>
         </record>
