@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Extend the standard delivery carrier selection wizard -->
+        <record id="view_choose_delivery_carrier_coordinadora" model="ir.ui.view">
+            <field name="name">choose.delivery.carrier.coordinadora.form</field>
+            <field name="model">choose.delivery.carrier</field>
+            <field name="inherit_id" ref="delivery.choose_delivery_carrier_form_view"/>
+            <field name="arch" type="xml">
+                <!-- Insert Coordinadora dimension fields after the delivery price row -->
+                <xpath expr="//field[@name='delivery_price']" position="after">
+                    <group
+                        string="Dimensiones del Paquete (Coordinadora)"
+                        invisible="not show_coordinadora_dims"
+                        col="4">
+                        <field name="coordinadora_alto"
+                               string="Alto (cm)"
+                               invisible="not show_coordinadora_dims"/>
+                        <field name="coordinadora_ancho"
+                               string="Ancho (cm)"
+                               invisible="not show_coordinadora_dims"/>
+                        <field name="coordinadora_largo"
+                               string="Largo (cm)"
+                               invisible="not show_coordinadora_dims"/>
+                        <field name="coordinadora_peso"
+                               string="Peso (kg)"
+                               invisible="not show_coordinadora_dims"/>
+                        <!-- Hidden technical field consumed by the onchange -->
+                        <field name="show_coordinadora_dims" invisible="1"/>
+                    </group>
+                </xpath>
+            </field>
+        </record>
+    </data>
+</odoo>

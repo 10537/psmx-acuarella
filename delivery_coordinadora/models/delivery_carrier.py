@@ -1,11 +1,15 @@
 # -*- coding: utf-8 -*-
 
+import hashlib
+import logging
+import base64
+
 from odoo import models, fields, api
 from odoo.exceptions import UserError
 from zeep import xsd
-import logging
 
 _logger = logging.getLogger(__name__)
+
 
 class DeliveryCarrier(models.Model):
     _inherit = 'delivery.carrier'
@@ -29,13 +33,51 @@ class DeliveryCarrier(models.Model):
     coordinadora_div = fields.Char(string="Div", default="01")
     coordinadora_id_rotulo = fields.Char(string="ID Rótulo (Etiqueta)")
 
-    coordinadora_ws_guias_test = fields.Char(string="WS Guias URL (Test)", default="https://sandbox.coordinadora.com/agw/ws/guias/1.6/server.php?wsdl")
+    coordinadora_ws_guias_test = fields.Char(
+        string="WS Guias URL (Test)",
+        default="https://sandbox.coordinadora.com/agw/ws/guias/1.6/server.php?wsdl",
+    )
     coordinadora_ws_guias_prod = fields.Char(string="WS Guias URL (Prod)")
-    coordinadora_ws_seguimiento_test = fields.Char(string="WS Seguimiento URL (Test)", default="https://sandbox.coordinadora.com/ags/1.5/server.php?wsdl")
+    coordinadora_ws_seguimiento_test = fields.Char(
+        string="WS Seguimiento URL (Test)",
+        default="https://ws.coordinadora.com/ags/1.5/server.php?wsdl",
+    )
     coordinadora_ws_seguimiento_prod = fields.Char(string="WS Seguimiento URL (Prod)")
 
+    # -------------------------------------------------------------------------
+    # Security: SHA-256 hashing for stored passwords
+    # -------------------------------------------------------------------------
+
+    @staticmethod
+    def _hash_password(value):
+        """Return SHA-256 hex digest of *value* unless it looks already hashed."""
+        if not value:
+            return value
+        # A SHA-256 hex digest is exactly 64 lowercase hex chars — skip re-hashing.
+        if len(value) == 64 and all(c in '0123456789abcdef' for c in value):
+            return value
+        return hashlib.sha256(value.encode('utf-8')).hexdigest()
+
+    def write(self, vals):
+        for field in ('coordinadora_password', 'coordinadora_tracking_password'):
+            if vals.get(field):
+                vals[field] = self._hash_password(vals[field])
+        return super().write(vals)
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            for field in ('coordinadora_password', 'coordinadora_tracking_password'):
+                if vals.get(field):
+                    vals[field] = self._hash_password(vals[field])
+        return super().create(vals_list)
+
+    # -------------------------------------------------------------------------
+    # Helpers
+    # -------------------------------------------------------------------------
+
     def _get_coordinadora_client(self, ws_type='guias'):
-        """Helper method to get Zeep client for Coordinadora based on environment and requested WS type."""
+        """Return a Zeep SOAP client for the requested WS type and environment."""
         self.ensure_one()
         try:
             from zeep import Client
@@ -48,24 +90,23 @@ class DeliveryCarrier(models.Model):
             wsdl = self.coordinadora_ws_guias_prod if ws_type == 'guias' else self.coordinadora_ws_seguimiento_prod
 
         if not wsdl:
-            raise UserError(f"Please configure the Coordinadora {ws_type} WebService URL for {self.coordinadora_environment} environment.")
-        
+            raise UserError(
+                f"Configure la URL del WebService Coordinadora ({ws_type}) "
+                f"para el entorno '{self.coordinadora_environment}'."
+            )
         return Client(wsdl)
 
     def _normalize_city_code(self, city_code):
+        """Normalise a city code to the 8-digit format required by Coordinadora."""
         if not city_code:
             return '11001000'
         city_code = str(city_code).strip()
-        
-        # Coordinadora city code must be 8 digits
         if len(city_code) == 8:
             return city_code
-            
         if city_code.endswith('000'):
             return city_code.zfill(8)
-            
         return f"{city_code.zfill(5)}000"
-    
+
     @api.depends('delivery_type')
     def _compute_can_generate_return(self):
         super()._compute_can_generate_return()
@@ -78,90 +119,136 @@ class DeliveryCarrier(models.Model):
         for carrier in self.filtered(lambda c: c.delivery_type == 'coordinadora'):
             carrier.supports_shipping_insurance = True
 
+    # -------------------------------------------------------------------------
+    # Rate shipment (Cotizador) — FIX SIFA
+    # -------------------------------------------------------------------------
+
     def coordinadora_rate_shipment(self, order):
-        """Implement pricing calculation for Coordinadora correctly.
-        Usando Cotizador_cotizar (WebService Seguimiento - AGS).
+        """Compute the shipping rate via Coordinadora's Cotizador_cotizar endpoint.
+
+        Critical JSON structure (confirmed against SIFA spec):
+          - cuenta:         integer  (e.g. 2)
+          - producto:       integer  (e.g. 0)
+          - nivel_servicio: list of objects  [{"item": 1}]
+          - detalle:        flat list of package objects
+          - apikey / clave: sent in the request body
         """
         self.ensure_one()
-        
+
         if not self.coordinadora_use_api:
-            return {'success': False, 'price': 0.0, 'error_message': 'Coordinadora API is disabled.', 'warning_message': False}
-            
+            return {
+                'success': False, 'price': 0.0,
+                'error_message': 'Coordinadora API is disabled.', 'warning_message': False,
+            }
+
+        if not self.coordinadora_client_id or not self.coordinadora_nit:
+            return {
+                'success': False, 'price': 0.0,
+                'error_message': 'Configure Client ID y NIT en la transportadora Coordinadora.',
+                'warning_message': False,
+            }
+
         try:
             client = self._get_coordinadora_client(ws_type='seguimiento')
-            
-            partner_shipping = order.partner_shipping_id
-            origin_city = self._normalize_city_code(self.company_id.partner_id.city_id.code or '11001000')
-            dest_city = self._normalize_city_code(partner_shipping.city_id and partner_shipping.city_id.code or '11001000')
-            
-            total_weight = sum([line.product_id.weight * line.product_uom_qty for line in order.order_line if line.product_id.type != 'service']) or 1.0
-            total_product = len([line.product_id.default_code for line in order.order_line if line.product_id.type != 'service'])
 
-            if not self.coordinadora_client_id or not self.coordinadora_nit:
-                return {'success': False, 'price': 0.0, 'error_message': 'Please configure Client ID and NIT in the carrier settings.', 'warning_message': False}
+            partner_shipping = order.partner_shipping_id
+            origin_city = self._normalize_city_code(
+                self.company_id.partner_id.city_id and self.company_id.partner_id.city_id.code or '11001000'
+            )
+            dest_city = self._normalize_city_code(
+                partner_shipping.city_id and partner_shipping.city_id.code or '11001000'
+            )
+
+            # Dimensions: prefer values injected by the delivery wizard via context
+            ctx = self.env.context
+            alto = ctx.get('coordinadora_alto') or 50.0
+            ancho = ctx.get('coordinadora_ancho') or 50.0
+            largo = ctx.get('coordinadora_largo') or 50.0
+
+            serviceable_lines = [
+                l for l in order.order_line if l.product_id.type != 'service'
+            ]
+            if ctx.get('coordinadora_peso'):
+                total_weight = float(ctx['coordinadora_peso'])
+            else:
+                total_weight = sum(
+                    l.product_id.weight * l.product_uom_qty for l in serviceable_lines
+                ) or 1.0
+
+            total_units = len(serviceable_lines) or 1
 
             request_data = {
                 'nit': self.coordinadora_nit,
                 'div': self.coordinadora_div or '01',
-                'cuenta': "02",
-                'producto': "0",
+                'cuenta': 2,                        # Integer — required by SIFA
+                'producto': 0,                      # Integer — required by SIFA
                 'origen': origin_city,
                 'destino': dest_city,
                 'valoracion': int(order.amount_total),
-                'nivel_servicio': 1,
-                'detalle': {
-                    'item': [{
-                        'ubl': '1',
-                        'alto': '50',
-                        'ancho': '50',
-                        'largo': '50',
-                        'peso': str(total_weight),
-                        'unidades': str(int(total_product)),
-                    }]
-                },
+                'nivel_servicio': [{'item': 1}],    # List of objects — required by SIFA
+                'detalle': [{                        # Flat list — required by SIFA
+                    'ubl': 1,
+                    'alto': float(alto),
+                    'ancho': float(ancho),
+                    'largo': float(largo),
+                    'peso': float(total_weight),
+                    'unidades': int(total_units),
+                }],
                 'apikey': self.coordinadora_apikey,
-                'clave': self.coordinadora_tracking_password
+                'clave': self.coordinadora_tracking_password,
             }
 
-            _logger.info(f"Request data: {request_data}")
-            _logger.info(f"Client: {client.wsdl.location}")
-            _logger.info(f"Client Active Service: {client.service._binding_options['address']}")
+            _logger.info("Coordinadora Cotizador request: %s", request_data)
 
             response = client.service.Cotizador_cotizar(p=request_data)
-            
+
+            _logger.info("Coordinadora Cotizador response: %s", response)
+
             if hasattr(response, 'flete_total'):
                 return {
                     'success': True,
                     'price': float(response.flete_total),
                     'carrier_price': float(response.flete_total),
                     'error_message': False,
-                    'warning_message': False
+                    'warning_message': False,
                 }
-            return {'success': False, 'price': 0.0, 'error_message': str(response), 'warning_message': False}
+            return {
+                'success': False, 'price': 0.0,
+                'error_message': str(response), 'warning_message': False,
+            }
         except Exception as e:
-            return {'success': False, 'price': 0.0, 'error_message': str(e), 'warning_message': False}
+            _logger.exception("Coordinadora rate_shipment error")
+            return {
+                'success': False, 'price': 0.0,
+                'error_message': str(e), 'warning_message': False,
+            }
+
+    # -------------------------------------------------------------------------
+    # Send shipping (guide generation is manual via button)
+    # -------------------------------------------------------------------------
 
     def coordinadora_send_shipping(self, pickings):
-        """Called automatically on picking validation. For Coordinadora the guide
-        is generated manually via the 'Generar Guía' button, so we return a
-        dummy result here to allow validation to proceed without errors.
-        """
+        """Validation hook — guide is generated manually; return dummy result."""
         return [{'exact_price': 0.0, 'tracking_number': False} for _ in pickings]
 
+    # -------------------------------------------------------------------------
+    # Guide generation
+    # -------------------------------------------------------------------------
+
     def _coordinadora_generate_guide(self, picking):
-        """Generate the Coordinadora shipping guide for a single picking.
-        Called from the manual button on the delivery picking form.
-        """
+        """Generate a Coordinadora shipping guide and attach the label PDF to the picking."""
         self.ensure_one()
+
         if not self.coordinadora_use_api:
             raise UserError("Coordinadora API is disabled.")
-
         if not self.coordinadora_client_id:
-            raise UserError("Please configure Client ID (Acuerdo) in the Coordinadora carrier settings.")
+            raise UserError("Configure el Client ID (Acuerdo) en la transportadora Coordinadora.")
 
         order = picking.sale_id
         if not order:
-            raise UserError("El picking debe estar relacionado a una Orden de Venta para generar la guía de Coordinadora.")
+            raise UserError(
+                "El picking debe estar relacionado a una Orden de Venta para generar la guía."
+            )
 
         try:
             client = self._get_coordinadora_client(ws_type='guias')
@@ -169,10 +256,17 @@ class DeliveryCarrier(models.Model):
             sender = order.company_id.partner_id
             receiver = order.partner_shipping_id
 
-            sender_city = self._normalize_city_code(sender.city_id and sender.city_id.code or '11001000')
-            receiver_city = self._normalize_city_code(receiver.city_id and receiver.city_id.code or '11001000')
+            sender_city = self._normalize_city_code(
+                sender.city_id and sender.city_id.code or '11001000'
+            )
+            receiver_city = self._normalize_city_code(
+                receiver.city_id and receiver.city_id.code or '11001000'
+            )
 
-            total_weight = sum([line.product_id.weight * line.product_uom_qty for line in order.order_line if line.product_id.type != 'service']) or 1.0
+            total_weight = sum(
+                l.product_id.weight * l.product_uom_qty
+                for l in order.order_line if l.product_id.type != 'service'
+            ) or 1.0
 
             request_data = {
                 'codigo_remision': '',
@@ -197,7 +291,7 @@ class DeliveryCarrier(models.Model):
                 'linea': '',
                 'contenido': (order.client_order_ref or 'Mercancia')[:30],
                 'referencia': order.name,
-                'observaciones': "https://test.jdchouse.com/terms",
+                'observaciones': '',
                 'estado': 'IMPRESO',
                 'detalle': [{
                     'ubl': 0,
@@ -231,80 +325,99 @@ class DeliveryCarrier(models.Model):
                 'nro_sobre': '',
                 'codigo_vendedor': 0,
                 'usuario': self.coordinadora_user,
-                'clave': self.coordinadora_password
+                'clave': self.coordinadora_password,
             }
 
-            _logger.info(f"Coordinadora generate guide request: {request_data}")
+            _logger.info("Coordinadora generate guide request: %s", request_data)
 
             response = client.service.Guias_generarGuia(p=request_data)
 
-            _logger.info(f"Coordinadora generate guide response: {response}")
+            _logger.info("Coordinadora generate guide response: %s", response)
 
-            if hasattr(response, 'codigo_remision'):
-                tracking_number = response.codigo_remision
-                tracking_url = f"https://www.coordinadora.com/portafolio-de-servicios/servicios-en-linea/rastrear-guias/?guia={tracking_number}"
-
-                order.write({
-                    'carrier_delivery_ref': tracking_number,
-                    'carrier_delivery_url': tracking_url,
-                })
-                picking.carrier_tracking_ref = tracking_number
-
-                pdf_base64 = getattr(response, 'pdf_guia', False)
-                if pdf_base64:
-                    attachment = self.env['ir.attachment'].create({
-                        'name': f"Guia_Coordinadora_{tracking_number}.pdf",
-                        'type': 'binary',
-                        'datas': pdf_base64,
-                        'res_model': 'sale.order',
-                        'res_id': order.id,
-                        'mimetype': 'application/pdf',
-                    })
-                    order.message_post(
-                        body=f"Guía Coordinadora generada: {tracking_number}",
-                        attachment_ids=[attachment.id],
-                    )
-            else:
+            if not hasattr(response, 'codigo_remision'):
                 raise UserError(f"Falló la generación de guía Coordinadora: {response}")
+
+            tracking_number = response.codigo_remision
+            picking.carrier_tracking_ref = tracking_number
+
+            # Attach label PDF to the picking (Albarán) — spec item 4
+            pdf_base64 = getattr(response, 'pdf_guia', False)
+            if pdf_base64:
+                # Ensure the value is a proper base64 string (decode/re-encode if needed)
+                try:
+                    base64.b64decode(pdf_base64, validate=True)
+                    pdf_data = pdf_base64
+                except Exception:
+                    pdf_data = base64.b64encode(
+                        pdf_base64 if isinstance(pdf_base64, bytes) else pdf_base64.encode()
+                    ).decode()
+
+                attachment = self.env['ir.attachment'].create({
+                    'name': f'Etiqueta_Coordinadora_{tracking_number}.pdf',
+                    'type': 'binary',
+                    'datas': pdf_data,
+                    'res_model': 'stock.picking',
+                    'res_id': picking.id,
+                    'mimetype': 'application/pdf',
+                })
+                picking.message_post(
+                    body=f'Guía Coordinadora generada: {tracking_number}',
+                    attachment_ids=[attachment.id],
+                )
+            else:
+                picking.message_post(
+                    body=f'Guía Coordinadora generada: {tracking_number} (sin PDF adjunto)',
+                )
+
         except UserError:
             raise
         except Exception as e:
+            _logger.exception("Coordinadora generate guide error")
             raise UserError(f"Error comunicando con Coordinadora API: {e}")
 
+    # -------------------------------------------------------------------------
+    # Label printing (rótulos)
+    # -------------------------------------------------------------------------
+
     def _coordinadora_print_labels(self, picking):
-        """Print Coordinadora shipping labels (rótulos) for a picking.
-        Uses Guias.imprimirRotulos via JSON-RPC over HTTP.
-        """
+        """Print Coordinadora shipping label (rótulo) via JSON-RPC and attach PDF to picking."""
         self.ensure_one()
-        import requests, base64, json
+        import requests
+        import json
 
         if not picking.carrier_tracking_ref:
-            raise UserError("Este picking no tiene un número de guía asignado. Genere la guía primero.")
-
+            raise UserError(
+                "Este picking no tiene número de guía. Genere la guía primero."
+            )
         if not self.coordinadora_id_rotulo:
-            raise UserError("Configure el ID Rótulo (Etiqueta) en la transportadora Coordinadora.")
+            raise UserError(
+                "Configure el ID Rótulo (Etiqueta) en la transportadora Coordinadora."
+            )
 
-        if self.coordinadora_environment == 'test':
-            url = (self.coordinadora_ws_guias_test or '').replace('?wsdl', '')
-        else:
-            url = self.coordinadora_ws_guias_prod or ''
+        base_url = (
+            self.coordinadora_ws_guias_test
+            if self.coordinadora_environment == 'test'
+            else self.coordinadora_ws_guias_prod
+        ) or ''
 
-        if not url:
+        if not base_url:
             raise UserError("Configure la URL del WS Guías para el entorno actual.")
 
+        url = base_url.replace('?wsdl', '')
+
         payload = {
-            "jsonrpc": "2.0",
-            "id": 0,
-            "method": "Guias.imprimirRotulos",
-            "params": {
-                "id_rotulo": self.coordinadora_id_rotulo,
-                "codigos_remisiones": [picking.carrier_tracking_ref],
-                "usuario": self.coordinadora_user,
-                "clave": self.coordinadora_password,
-            }
+            'jsonrpc': '2.0',
+            'id': 0,
+            'method': 'Guias.imprimirRotulos',
+            'params': {
+                'id_rotulo': self.coordinadora_id_rotulo,
+                'codigos_remisiones': [picking.carrier_tracking_ref],
+                'usuario': self.coordinadora_user,
+                'clave': self.coordinadora_password,
+            },
         }
 
-        _logger.info(f"Coordinadora imprimirRotulos request to {url}: {payload}")
+        _logger.info("Coordinadora imprimirRotulos request to %s: %s", url, payload)
 
         try:
             response = requests.post(
@@ -318,23 +431,26 @@ class DeliveryCarrier(models.Model):
         except Exception as e:
             raise UserError(f"Error comunicando con Coordinadora API (rótulos): {e}")
 
-        _logger.info(f"Coordinadora imprimirRotulos response: {result}")
+        _logger.info("Coordinadora imprimirRotulos response: %s", result)
 
-        # The API returns the PDF in base64 inside result['result'] or directly
         pdf_b64 = None
         if isinstance(result, dict):
             res_data = result.get('result') or result.get('pdf') or result.get('rotulo')
             if isinstance(res_data, str):
                 pdf_b64 = res_data
             elif isinstance(res_data, dict):
-                pdf_b64 = res_data.get('pdf') or res_data.get('rotulo') or res_data.get('pdf_rotulo')
+                pdf_b64 = (
+                    res_data.get('pdf')
+                    or res_data.get('rotulo')
+                    or res_data.get('pdf_rotulo')
+                )
 
         if not pdf_b64:
             raise UserError(f"No se recibió PDF de rótulo en la respuesta: {result}")
 
         tracking = picking.carrier_tracking_ref
         attachment = self.env['ir.attachment'].create({
-            'name': f"Rotulo_Coordinadora_{tracking}.pdf",
+            'name': f'Etiqueta_Coordinadora_{tracking}.pdf',
             'type': 'binary',
             'datas': pdf_b64,
             'res_model': 'stock.picking',
@@ -342,15 +458,8 @@ class DeliveryCarrier(models.Model):
             'mimetype': 'application/pdf',
         })
 
-        order = picking.sale_id
-        if order:
-            order.message_post(
-                body=f"Rótulo Coordinadora generado para guía: {tracking}",
-                attachment_ids=[attachment.id],
-            )
-
         picking.message_post(
-            body=f"Rótulo Coordinadora generado para guía: {tracking}",
+            body=f'Rótulo Coordinadora generado para guía: {tracking}',
             attachment_ids=[attachment.id],
         )
 
@@ -360,12 +469,18 @@ class DeliveryCarrier(models.Model):
             'target': 'new',
         }
 
+    # -------------------------------------------------------------------------
+    # Tracking / cancel
+    # -------------------------------------------------------------------------
+
     def coordinadora_get_tracking_link(self, picking):
-        """Implement tracking link for Coordinadora."""
-        return picking.sale_id.carrier_delivery_url or f"https://www.coordinadora.com/portafolio-de-servicios/servicios-en-linea/rastrear-guias/?guia={picking.carrier_tracking_ref}"
+        return (
+            picking.sale_id.carrier_delivery_url
+            or f"https://www.coordinadora.com/portafolio-de-servicios/servicios-en-linea/"
+               f"rastrear-guias/?guia={picking.carrier_tracking_ref}"
+        )
 
     def coordinadora_cancel_shipment(self, pickings):
-        """Implement cancellation for Coordinadora."""
         self.ensure_one()
         if not self.coordinadora_use_api:
             raise UserError("Coordinadora API is disabled.")
@@ -373,15 +488,19 @@ class DeliveryCarrier(models.Model):
             client = self._get_coordinadora_client(ws_type='guias')
             for picking in pickings:
                 if picking.carrier_tracking_ref:
-                    request_data = {
+                    client.service.Guias_anularGuia(p={
                         'codigo_remision': picking.carrier_tracking_ref,
                         'usuario': self.coordinadora_user,
-                        'clave': self.coordinadora_password
-                    }
-                    client.service.Guias_anularGuia(p=request_data)
+                        'clave': self.coordinadora_password,
+                    })
                     picking.carrier_tracking_ref = False
         except Exception as e:
-            raise UserError(f"Error cancelling with Coordinadora API: {e}")
+            raise UserError(f"Error al cancelar con Coordinadora API: {e}")
+
+
+# ---------------------------------------------------------------------------
+# Stock Picking
+# ---------------------------------------------------------------------------
 
 class StockPicking(models.Model):
     _inherit = 'stock.picking'
@@ -402,18 +521,21 @@ class StockPicking(models.Model):
             )
 
     def action_generate_coordinadora_guide(self):
-        """Button action: generate Coordinadora guide for this delivery picking."""
         self.ensure_one()
         if not self.carrier_id or self.carrier_id.delivery_type != 'coordinadora':
             raise UserError("Este picking no tiene una transportadora Coordinadora asignada.")
         self.carrier_id._coordinadora_generate_guide(self)
 
     def action_print_coordinadora_label(self):
-        """Button action: print Coordinadora shipping label (rótulo) for this delivery picking."""
         self.ensure_one()
         if not self.carrier_id or self.carrier_id.delivery_type != 'coordinadora':
             raise UserError("Este picking no tiene una transportadora Coordinadora asignada.")
         return self.carrier_id._coordinadora_print_labels(self)
+
+
+# ---------------------------------------------------------------------------
+# Sale Order
+# ---------------------------------------------------------------------------
 
 class SaleOrder(models.Model):
     _inherit = 'sale.order'
