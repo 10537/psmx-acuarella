@@ -565,36 +565,42 @@ class SaleIntegration(models.Model):
         This method filters orders based on the integration channels configured.
         It handles the 'No Channel' case for orders without a specific channel.
 
+        When no channels are configured, all orders are returned without filtering.
+
         Args:
             external_orders_data_list (list): List of orders data.
 
         Returns:
-            recordset: Recordset of filtered orders data.
+            list: Filtered list of orders data.
         """
-
         channels = self.integration_channel_ids
         if not channels:
             return external_orders_data_list
 
-        external_channel_ids = channels.mapped('external_id')
+        # Build a set of configured external channel IDs for fast O(1) lookup.
+        # Real channel IDs are numeric strings extracted from Shopify GIDs
+        # (e.g. "gid://shopify/Publication/12345" → "12345").
+        external_channel_ids = set(channels.mapped('external_id'))
 
-        # Include orders without a channel if 'No Channel' is selected
+        # Include orders without a channel only if the special 'No Channel' entry is selected
         include_no_channel = any(x.is_no_channel for x in channels)
 
         filtered_orders_data = []
-        order = self.adapter.gql.Order
 
         for data in external_orders_data_list:
-            order.set(**data['data'])
-            channel_data = order.parse_sale_channel()
+            # Extract the publication GID directly from the raw order payload to avoid
+            # re-using a shared GQL object that may carry state from previous iterations.
+            raw_publication = (data.get('data') or {}).get('publication') or {}
+            publication_gid = raw_publication.get('id', '')
 
-            if channel_data:
-                if channel_data['channel_id'] in external_channel_ids:
+            if publication_gid:
+                # Derive the numeric channel ID the same way id_str does:
+                # take the last path segment of the GID (e.g. "gid://shopify/Publication/12345" → "12345").
+                channel_id = publication_gid.rsplit('/', 1)[-1]
+                if channel_id in external_channel_ids:
                     filtered_orders_data.append(data)
             elif include_no_channel:
                 filtered_orders_data.append(data)
-
-            order.reset()
 
         filtered_count = len(external_orders_data_list) - len(filtered_orders_data)
         if filtered_count:
