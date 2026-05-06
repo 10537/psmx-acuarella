@@ -185,15 +185,15 @@ class DeliveryCarrier(models.Model):
                 'origen': origin_city,
                 'destino': dest_city,
                 'valoracion': int(order.amount_total),
-                'nivel_servicio': [{'item': 1}],    # List of objects — required by SIFA
-                'detalle': [{                        # Flat list — required by SIFA
+                'nivel_servicio': {'item': [{'item': 1}]},
+                'detalle': {'item': [{
                     'ubl': 1,
                     'alto': float(alto),
                     'ancho': float(ancho),
                     'largo': float(largo),
                     'peso': float(total_weight),
                     'unidades': int(total_units),
-                }],
+                }]},
                 'apikey': self.coordinadora_apikey,
                 'clave': self.coordinadora_tracking_password,
             }
