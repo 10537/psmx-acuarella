@@ -59,17 +59,17 @@ class DeliveryCarrier(models.Model):
         return hashlib.sha256(value.encode('utf-8')).hexdigest()
 
     def write(self, vals):
-        for field in ('coordinadora_password', 'coordinadora_tracking_password'):
-            if vals.get(field):
-                vals[field] = self._hash_password(vals[field])
+        # Only coordinadora_password (guide WS) uses SHA-256.
+        # coordinadora_tracking_password (cotizador) is sent as plaintext per API spec.
+        if vals.get('coordinadora_password'):
+            vals['coordinadora_password'] = self._hash_password(vals['coordinadora_password'])
         return super().write(vals)
 
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
-            for field in ('coordinadora_password', 'coordinadora_tracking_password'):
-                if vals.get(field):
-                    vals[field] = self._hash_password(vals[field])
+            if vals.get('coordinadora_password'):
+                vals['coordinadora_password'] = self._hash_password(vals['coordinadora_password'])
         return super().create(vals_list)
 
     # -------------------------------------------------------------------------
@@ -380,10 +380,12 @@ class DeliveryCarrier(models.Model):
     # -------------------------------------------------------------------------
 
     def _coordinadora_print_labels(self, picking):
-        """Print Coordinadora shipping label (rótulo) via JSON-RPC and attach PDF to picking."""
+        """Print Coordinadora shipping label (rótulo) via SOAP (zeep) and attach PDF to picking.
+
+        The WS Guías endpoint is SOAP-only; calling it with JSON-RPC returns an empty
+        response.  We use the same zeep client as guide generation.
+        """
         self.ensure_one()
-        import requests
-        import json
 
         if not picking.carrier_tracking_ref:
             raise UserError(
@@ -394,59 +396,39 @@ class DeliveryCarrier(models.Model):
                 "Configure el ID Rótulo (Etiqueta) en la transportadora Coordinadora."
             )
 
-        base_url = (
-            self.coordinadora_ws_guias_test
-            if self.coordinadora_environment == 'test'
-            else self.coordinadora_ws_guias_prod
-        ) or ''
+        try:
+            client = self._get_coordinadora_client(ws_type='guias')
 
-        if not base_url:
-            raise UserError("Configure la URL del WS Guías para el entorno actual.")
-
-        url = base_url.replace('?wsdl', '')
-
-        payload = {
-            'jsonrpc': '2.0',
-            'id': 0,
-            'method': 'Guias.imprimirRotulos',
-            'params': {
-                'id_rotulo': self.coordinadora_id_rotulo,
+            request_data = {
+                'id_rotulo': int(self.coordinadora_id_rotulo),
                 'codigos_remisiones': [picking.carrier_tracking_ref],
                 'usuario': self.coordinadora_user,
                 'clave': self.coordinadora_password,
-            },
-        }
+            }
 
-        _logger.info("Coordinadora imprimirRotulos request to %s: %s", url, payload)
+            _logger.info("Coordinadora imprimirRotulos SOAP request: %s", request_data)
 
-        try:
-            response = requests.post(
-                url,
-                headers={'Content-Type': 'application/json'},
-                data=json.dumps(payload),
-                timeout=30,
-            )
-            response.raise_for_status()
-            result = response.json()
+            response = client.service.Guias_imprimirRotulos(p=request_data)
+
+            _logger.info("Coordinadora imprimirRotulos SOAP response: %s", response)
+
+        except UserError:
+            raise
         except Exception as e:
+            _logger.exception("Coordinadora imprimirRotulos error")
             raise UserError(f"Error comunicando con Coordinadora API (rótulos): {e}")
 
-        _logger.info("Coordinadora imprimirRotulos response: %s", result)
-
-        pdf_b64 = None
-        if isinstance(result, dict):
-            res_data = result.get('result') or result.get('pdf') or result.get('rotulo')
-            if isinstance(res_data, str):
-                pdf_b64 = res_data
-            elif isinstance(res_data, dict):
-                pdf_b64 = (
-                    res_data.get('pdf')
-                    or res_data.get('rotulo')
-                    or res_data.get('pdf_rotulo')
-                )
+        # Extract the base64 PDF — field name may vary by API version
+        pdf_b64 = (
+            getattr(response, 'pdf_rotulo', None)
+            or getattr(response, 'rotulo', None)
+            or getattr(response, 'pdf', None)
+        )
 
         if not pdf_b64:
-            raise UserError(f"No se recibió PDF de rótulo en la respuesta: {result}")
+            raise UserError(
+                f"No se recibió PDF de rótulo en la respuesta de Coordinadora: {response}"
+            )
 
         tracking = picking.carrier_tracking_ref
         attachment = self.env['ir.attachment'].create({
