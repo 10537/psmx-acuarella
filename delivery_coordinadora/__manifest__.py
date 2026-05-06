@@ -11,6 +11,7 @@
     'depends': ['delivery', 'stock_delivery', 'mail'],
     'data': [
         'views/delivery_carrier_views.xml',
+        'views/delivery_wizard_views.xml',
     ],
     'installable': True,
     'application': False,
