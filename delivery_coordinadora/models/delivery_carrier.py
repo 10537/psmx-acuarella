@@ -402,10 +402,16 @@ class DeliveryCarrier(models.Model):
             from lxml import etree
             item = etree.Element("item")
             item.text = picking.carrier_tracking_ref
+            item.set("{http://www.w3.org/2001/XMLSchema-instance}type", "xsd:string")
 
             request_data = {
                 'id_rotulo': int(self.coordinadora_id_rotulo),
-                'codigos_remisiones': {'_value_1': [item]},
+                'codigos_remisiones': {
+                    '_value_1': [item],
+                    '_attr_1': {
+                        '{http://schemas.xmlsoap.org/soap/encoding/}arrayType': 'xsd:string[1]'
+                    }
+                },
                 'usuario': self.coordinadora_user,
                 'clave': self.coordinadora_password,
             }
@@ -420,8 +426,14 @@ class DeliveryCarrier(models.Model):
             raise
         except Exception as e:
             error_msg = str(e)
+            error_content = getattr(e, 'content', b'')
+            if isinstance(error_content, bytes):
+                error_content = error_content.decode('utf-8', errors='replace')
+            else:
+                error_content = str(error_content)
+
             _logger.exception("Coordinadora imprimirRotulos error")
-            if "Could not connect to host" in error_msg:
+            if "Could not connect to host" in error_msg or "Could not connect to host" in error_content:
                 raise UserError(
                     "El servidor de pruebas (Sandbox) de Coordinadora falló internamente al generar el PDF "
                     "('Could not connect to host'). Esto es común en su ambiente de pruebas. "
@@ -434,6 +446,7 @@ class DeliveryCarrier(models.Model):
             getattr(response, 'pdf_rotulo', None)
             or getattr(response, 'rotulo', None)
             or getattr(response, 'pdf', None)
+            or getattr(response, 'rotulos', None)
         )
 
         if not pdf_b64:
