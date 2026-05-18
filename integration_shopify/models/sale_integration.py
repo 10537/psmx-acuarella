@@ -362,23 +362,31 @@ class SaleIntegration(models.Model):
             return True
         return super(SaleIntegration, self).advanced_inventory()
 
-    def is_importable_order_status(self, statuses: list[str]) -> bool:
+    def is_importable_order_status(self, statuses: list[str], check_fulfillment: bool = True) -> bool:
         if not self.is_integration_shopify:
             return super().is_importable_order_status(statuses)
 
-        # TODO: add filtering by sale channel
         financial_status, fulfillment_status = statuses
         financial_status_ok = fulfillment_status_ok = False
 
-        fin_state_list, fulf_state_list = self.get_importable_order_statuses()
+        try:
+            fin_state_list, fulf_state_list = self.get_importable_order_statuses()
+        except ValidationError as e:
+            _logger.warning(
+                '%s: is_importable_order_status — statuses not configured, accepting order. Detail: %s',
+                self.name, e,
+            )
+            return True
 
         if financial_status in fin_state_list:
             financial_status_ok = True
 
-        if fulfillment_status in fulf_state_list:
+        # When check_fulfillment=False (webhook ORDERS_CREATE / ORDERS_PAID) we skip the
+        # fulfillment gate so that freshly paid-but-not-yet-shipped orders are not dropped.
+        if not check_fulfillment or fulfillment_status in fulf_state_list:
             fulfillment_status_ok = True
 
-        return (financial_status_ok and fulfillment_status_ok)
+        return financial_status_ok and fulfillment_status_ok
 
     def get_importable_order_statuses(self) -> tuple[list[str], list[str]]:
         if not self.is_integration_shopify:
@@ -577,9 +585,7 @@ class SaleIntegration(models.Model):
         if not channels:
             return external_orders_data_list
 
-        # Build a set of configured external channel IDs for fast O(1) lookup.
-        # Real channel IDs are numeric strings extracted from Shopify GIDs
-        # (e.g. "gid://shopify/Publication/12345" → "12345").
+        # Build a set of configured external channel IDs (full GIDs as stored) for fast O(1) lookup.
         external_channel_ids = set(channels.mapped('external_id'))
 
         # Include orders without a channel only if the special 'No Channel' entry is selected
@@ -588,16 +594,15 @@ class SaleIntegration(models.Model):
         filtered_orders_data = []
 
         for data in external_orders_data_list:
-            # Extract the publication GID directly from the raw order payload to avoid
-            # re-using a shared GQL object that may carry state from previous iterations.
+            # Extract the publication GID from the raw order payload.
+            # to_odoo_format() wraps raw GQL data under the 'data' key.
             raw_publication = (data.get('data') or {}).get('publication') or {}
             publication_gid = raw_publication.get('id', '')
 
             if publication_gid:
-                # Derive the numeric channel ID the same way id_str does:
-                # take the last path segment of the GID (e.g. "gid://shopify/Publication/12345" → "12345").
-                channel_id = publication_gid.rsplit('/', 1)[-1]
-                if channel_id in external_channel_ids:
+                # Compare the full GID directly — external_id stores the full GID
+                # (e.g. "gid://shopify/Publication/12345") as returned by publication.id_str.
+                if publication_gid in external_channel_ids:
                     filtered_orders_data.append(data)
             elif include_no_channel:
                 filtered_orders_data.append(data)

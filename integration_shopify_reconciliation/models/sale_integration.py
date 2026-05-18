@@ -141,9 +141,67 @@ class SaleIntegration(models.Model):
 
     def _reconcile_orders(self):
         """
-        Hook for reconciling orders.
+        Fetch recent Shopify orders and queue any that are missing in Odoo.
+
+        Shopify webhooks can be dropped (network errors, Odoo downtime, HMAC
+        mismatch after secret rotation). This method acts as a safety net by
+        pulling orders updated in the last 24 hours and importing those that
+        have not yet been received.
         """
         self.ensure_one()
-        _logger.info("Method '_reconcile_orders' execution for integration %s.", self.name)
-        # For now, minimal implementation as per requirements
-        pass
+        _logger.info("Reconciling orders for integration %s", self.name)
+
+        try:
+            external_orders = self.adapter.receive_orders(integration=self)
+        except Exception as e:
+            _logger.error(
+                "Failed to fetch orders from Shopify for reconciliation (%s): %s",
+                self.name, e, exc_info=True,
+            )
+            return
+
+        if not external_orders:
+            _logger.info("No recent orders returned from Shopify for %s", self.name)
+            return
+
+        # Filter by configured statuses (financial only — fulfillment state varies)
+        try:
+            fin_statuses, _fulf = self.get_importable_order_statuses()
+        except Exception:
+            fin_statuses = []
+
+        imported = skipped = 0
+        for order_data in external_orders:
+            external_id = order_data.get('id')
+            if not external_id:
+                continue
+
+            # Check if already imported
+            existing = self.env['sale.order'].search(
+                [('external_id', '=', str(external_id)),
+                 ('integration_id', '=', self.id)],
+                limit=1,
+            )
+            if existing:
+                skipped += 1
+                continue
+
+            # Validate financial status when we have a configured list
+            raw_fin_status = (order_data.get('data') or {}).get('displayFinancialStatus', '')
+            if fin_statuses and raw_fin_status.lower() not in [s.lower() for s in fin_statuses]:
+                skipped += 1
+                continue
+
+            try:
+                self.fetch_order_by_id_with_delay(external_id)
+                imported += 1
+            except Exception as e:
+                _logger.warning(
+                    "Reconciliation: failed to queue order %s for %s: %s",
+                    external_id, self.name, e,
+                )
+
+        _logger.info(
+            "Reconciliation complete for %s: %s orders queued, %s skipped.",
+            self.name, imported, skipped,
+        )

@@ -12,15 +12,16 @@ class DeliveryMethod(GqlDict):
 
     @property
     def is_valid(self):
-        return bool(self.name and self.code)
+        # A method with at least a name is valid; serviceCode is optional in Shopify.
+        return bool(self.name)
 
     @property
     def name(self):
-        return self.presentedName or self.code
+        return self.presentedName or self.serviceCode or ''
 
     @property
     def code(self):
-        return self.serviceCode
+        return self.serviceCode or self.presentedName or ''
 
     @property
     def method_type(self):

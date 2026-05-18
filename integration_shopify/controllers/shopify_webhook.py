@@ -203,8 +203,10 @@ class ShopifyWebhook(Controller, IntegrationWebhook):
 
         data = self._prepare_pipeline_data(integration, external_order_id)
 
-        if not integration.is_importable_order_status(data['integration_workflow_states']):
-            message = f'Order with code={external_order_id} is not in the expected status.'
+        # Skip fulfillment-status check here: a newly created order is always unfulfilled.
+        # Only the financial status (paid, authorized, etc.) matters at creation time.
+        if not integration.is_importable_order_status(data['integration_workflow_states'], check_fulfillment=False):
+            message = f'Order with code={external_order_id} is not in the expected financial status.'
             _logger.info(message)
             return Response(message)
 
