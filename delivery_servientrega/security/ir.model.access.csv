@@ -1,0 +1,3 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_servientrega_tracking_user,access_servientrega_tracking_user,model_servientrega_tracking,base.group_user,1,0,0,0
+access_servientrega_tracking_manager,access_servientrega_tracking_manager,model_servientrega_tracking,base.group_system,1,1,1,1

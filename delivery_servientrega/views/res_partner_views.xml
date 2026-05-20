@@ -1,0 +1,17 @@
+<odoo>
+    <record id="view_partner_form_dane" model="ir.ui.view">
+        <field name="name">res.partner.form.dane</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+
+         
+            <xpath expr="//page[@name='sales_purchases']//group[@name='misc']" position="inside">
+                <field name="dane_code" string="Código DANE (8 dígitos)"/>
+            </xpath>
+
+        </field>
+    </record>
+
+    
+</odoo>

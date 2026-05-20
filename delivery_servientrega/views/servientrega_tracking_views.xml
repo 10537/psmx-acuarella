@@ -1,0 +1,15 @@
+<odoo>
+    <record id="view_servientrega_tracking_list" model="ir.ui.view">
+        <field name="name">servientrega.tracking.list</field>
+        <field name="model">servientrega.tracking</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="picking_id"/>
+                <field name="event_date"/>
+                <field name="event_code"/>
+                <field name="event_description"/>
+                <field name="location"/>
+            </list>
+        </field>
+    </record>
+</odoo>

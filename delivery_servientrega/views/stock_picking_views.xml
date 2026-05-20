@@ -1,0 +1,51 @@
+<odoo>
+    <record id="view_picking_form_servientrega" model="ir.ui.view">
+        <field name="name">stock.picking.form.servientrega</field>
+        <field name="model">stock.picking</field>
+        <field name="inherit_id" ref="stock.view_picking_form"/>
+        <field name="arch" type="xml">
+
+            <xpath expr="//notebook" position="inside">
+
+                <page string="Servientrega" name="servientrega_tab"
+                      invisible="not servientrega_enabled">
+
+                    <group string="Guía">
+                        <field name="servientrega_guide_number" readonly="1"/>
+                        <field name="servientrega_recaudo"/>
+                    </group>
+
+                    <group string="Tracking">
+                        <field name="servientrega_tracking_ids" readonly="1">
+                            <list>
+                                <field name="event_date"/>
+                                <field name="event_code"/>
+                                <field name="event_description"/>
+                                <field name="location"/>
+                            </list>
+                        </field>
+                    </group>
+
+                </page>
+
+            </xpath>
+
+            <xpath expr="//header" position="inside">
+
+                <button name="action_servientrega_generate_guide"
+                        type="object"
+                        string="Generar Guía"
+                        class="btn-primary"
+                        invisible="not servientrega_enabled or state != 'assigned'"/>
+
+                <button name="action_servientrega_print_label"
+                        type="object"
+                        string="Imprimir Rótulo"
+                        class="btn-secondary"
+                        invisible="not servientrega_enabled or not servientrega_guide_number"/>
+
+            </xpath>
+
+        </field>
+    </record>
+</odoo>
