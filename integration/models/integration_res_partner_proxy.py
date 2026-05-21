@@ -446,6 +446,16 @@ class IntegrationResPartnerProxy(models.TransientModel):
         partner = self.env['res.partner'].from_external(
             self.integration_id, self.external_id, raise_error,
         )
+        # Defensive guard: duplicate mapping rows can produce a multi-record set.
+        # Take the most-recently-created record to avoid a Many2one singleton error.
+        if partner and len(partner) > 1:
+            _logger.warning(
+                'get_customer: multiple partner records (%s) for external_id=%s '
+                'in integration "%s". Using ID=%s.',
+                partner.ids, self.external_id,
+                self.integration_id.name, partner[:1].id,
+            )
+            partner = partner[:1]
         self.partner_id = partner
         return partner
 
